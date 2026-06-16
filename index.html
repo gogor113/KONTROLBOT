@@ -525,7 +525,8 @@
         // Init values on ready
         window.addEventListener('DOMContentLoaded', () => {
             // Load saved config
-            const savedUrl = localStorage.getItem("gogor_sheet_url") || "";
+            const defaultUrl = "https://script.google.com/macros/s/AKfycbyLo2PPukRP-JiX1l-7MJPNZa-UR6oUKmRl6ei4NlMitp4nyV4SxXKq-rjFO8f3gFhv/exec";
+            const savedUrl = localStorage.getItem("gogor_sheet_url") || defaultUrl;
             document.getElementById("sheet-url-input").value = savedUrl;
             
             // Render basic lists

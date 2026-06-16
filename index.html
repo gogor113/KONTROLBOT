@@ -210,6 +210,45 @@
                     </div>
                 </div>
 
+                <!-- Google Sheets Automator Guide (Collapsible details) -->
+                <div class="bg-cardBg border border-borderGray rounded-2xl p-6 shadow-xl relative mt-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles text-tealPrimary animate-pulse"></i> Sheet Automator Script
+                        </h3>
+                        <span class="bg-tealPrimary/10 text-tealLight text-[8px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">Full Auto</span>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mb-4 leading-relaxed">
+                        Gunakan kode Google Apps Script di bawah ini agar lembar baris (sheet), judul kolom (headers), serta entri data <strong>terbuat secara otomatis & mandiri (Full Auto-Create & Auto-Fill)</strong>! Anda tidak perlu mengetik nama kolom manual di lembar Google Sheets Anda.
+                    </p>
+                    
+                    <details class="group cursor-pointer">
+                        <summary class="flex justify-between items-center text-xs font-bold text-tealLight select-none">
+                            <span>BACA CARA PASANG & SALIN KODE</span>
+                            <span class="transition group-open:rotate-180"><i class="fa-solid fa-chevron-down text-[10px]"></i></span>
+                        </summary>
+                        <div class="mt-3 space-y-3">
+                            <ol class="text-[10px] text-gray-400 list-decimal pl-4 space-y-1.5 leading-relaxed">
+                                <li>Buka <a href="https://sheets.google.com" target="_blank" class="text-tealLight underline">Google Sheets</a> baru atau lembar yang ada.</li>
+                                <li>Klik menu <strong>Extensions (Ekstensi)</strong> &gt; <strong>Apps Script</strong>.</li>
+                                <li>Hapus semua kode bawaan (jika ada), lalu tempel (paste) kode dari kotak di bawah.</li>
+                                <li>Klik tombol <strong>Save</strong> (ikon disket).</li>
+                                <li>Klik <strong>Deploy</strong> &gt; <strong>New Deployment</strong>.</li>
+                                <li>Pilih tipe: <strong>Web App</strong> (Aplikasi Web).</li>
+                                <li>Set "Execute as": <b>Me (Anda)</b> dan "Who has access": <b>Anyone (Siapa saja)</b>.</li>
+                                <li>Klik <strong>Deploy</strong> dan beri izin akses (Authorize) Google jika diminta.</li>
+                                <li>Salin URL Web App yang didapat dan masukkan di kolom 'Google Sheet API Web App URL' di atas!</li>
+                            </ol>
+                            
+                            <textarea readonly class="w-full h-48 bg-darkBg border border-borderGray rounded-xl p-3 text-[10px] font-mono text-gray-300 focus:outline-none focus:ring-1 focus:ring-tealPrimary" id="apps-script-code-block"></textarea>
+                            
+                            <button onclick="copyAppsScriptCode()" id="btn-copy-script" class="w-full bg-tealPrimary/15 hover:bg-tealPrimary/25 text-tealLight border border-tealPrimary/30 font-bold py-1.5 rounded-xl text-[10px] flex items-center justify-center gap-1.5 transition">
+                                <i class="fa-solid fa-copy"></i> Salin Kode Google Script
+                            </button>
+                        </div>
+                    </details>
+                </div>
+
                 <!-- Simulation & Auto-trading simulator -->
                 <div class="bg-cardBg border border-borderGray rounded-2xl p-6 shadow-xl relative">
                     <div class="flex items-center justify-between mb-4">
@@ -528,6 +567,246 @@
             const defaultUrl = "https://script.google.com/macros/s/AKfycbyLo2PPukRP-JiX1l-7MJPNZa-UR6oUKmRl6ei4NlMitp4nyV4SxXKq-rjFO8f3gFhv/exec";
             const savedUrl = localStorage.getItem("gogor_sheet_url") || defaultUrl;
             document.getElementById("sheet-url-input").value = savedUrl;
+            
+            // Set Apps Script code template
+            const appsScriptCode = `/*
+  ============================================================
+  GOOGLE SHEET FULL ACTION - DATABASE AUTOMATOR
+  ============================================================
+  Fungsi Utama:
+  1. Otomatis Membuat Sheet baru bernama "Clients" bila belum ada.
+  2. Otomatis Mengisi Headings (Id, Nama, Telegram, dsb) secara mandiri.
+  3. Mendukung Sinkronisasi Massal (POST action=sync) dari Web App.
+  4. Mendukung Update Real-time (GET action=update_client) dari Bot EA MT5 Android.
+  ============================================================
+*/
+
+function doGet(e) {
+  var action = e.parameter.action;
+  var sheet = getOrCreateClientsSheet();
+  
+  if (action === "read") {
+    return readAllClients(sheet);
+  }
+  
+  if (action === "update_client") {
+    return updateIndividualClient(sheet, e.parameter);
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    status: "error",
+    message: "Aksi tidak dikenali atau parameter kurang."
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  var action = e.parameter.action;
+  var sheet = getOrCreateClientsSheet();
+  
+  if (action === "sync") {
+    try {
+      var postData = JSON.parse(e.postData.contents);
+      return syncAllClients(sheet, postData);
+    } catch(err) {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "error",
+        message: "Format JSON tidak valid: " + err.toString()
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    status: "error",
+    message: "Aksi POST tidak dikenali."
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function getOrCreateClientsSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetName = "Clients";
+  var sheet = ss.getSheetByName(sheetName);
+  
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+  }
+  
+  var headers = [
+    "id", "name", "telegram", "balance", "equity", "drawdown", 
+    "isLicenseActive", "expiryTimestamp", "lastActiveTime", "activeMode", 
+    "initialLot", "lotStep", "stepPoints", "maxSpread", "recoveryThreshold", "expMultiplier"
+  ];
+  
+  if (sheet.getLastRow() === 0 || sheet.getRange(1, 1).getValue().toString().trim() === "") {
+    sheet.clear();
+    sheet.appendRow(headers);
+    var headerRange = sheet.getRange(1, 1, 1, headers.length);
+    headerRange.setBackground("#0D9488")
+               .setFontColor("#FFFFFF")
+               .setFontWeight("bold")
+               .setHorizontalAlignment("center");
+    sheet.setFrozenRows(1);
+    
+    for (var i = 1; i <= headers.length; i++) {
+      sheet.autoResizeColumn(i);
+    }
+  }
+  
+  return sheet;
+}
+
+function readAllClients(sheet) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow <= 1) {
+    return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+  
+  var clientsList = [];
+  
+  for (var r = 0; r < data.length; r++) {
+    var rowData = data[r];
+    var obj = {};
+    for (var c = 0; c < headers.length; c++) {
+      var headerKey = headers[c].toString().trim();
+      var cellVal = rowData[c];
+      
+      if (headerKey === "id") {
+        obj[headerKey] = Number(cellVal) || (r + 1);
+      } else if (headerKey === "balance" || headerKey === "equity" || headerKey === "drawdown" || 
+                 headerKey === "initialLot" || headerKey === "lotStep" || headerKey === "expMultiplier") {
+        obj[headerKey] = Number(cellVal) || 0.0;
+      } else if (headerKey === "stepPoints" || headerKey === "maxSpread" || headerKey === "recoveryThreshold" || 
+                 headerKey === "expiryTimestamp" || headerKey === "lastActiveTime") {
+        obj[headerKey] = Number(cellVal) || 0;
+      } else if (headerKey === "isLicenseActive") {
+        obj[headerKey] = (cellVal === true || cellVal === "true" || cellVal == 1);
+      } else {
+        obj[headerKey] = cellVal.toString();
+      }
+    }
+    clientsList.push(obj);
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify(clientsList))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function syncAllClients(sheet, clientsList) {
+  if (!Array.isArray(clientsList)) {
+    return ContentService.createTextOutput(JSON.stringify({status: "error", message: "Data harus berupa array"})).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  var lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.deleteRows(2, lastRow - 1);
+  }
+  
+  var headers = [
+    "id", "name", "telegram", "balance", "equity", "drawdown", 
+    "isLicenseActive", "expiryTimestamp", "lastActiveTime", "activeMode", 
+    "initialLot", "lotStep", "stepPoints", "maxSpread", "recoveryThreshold", "expMultiplier"
+  ];
+  
+  for (var i = 0; i < clientsList.length; i++) {
+    var c = clientsList[i];
+    var row = [];
+    
+    row.push(Number(c.id) || (i + 1));
+    row.push(c.name || "Klien");
+    row.push(c.telegram || "@klien");
+    row.push(Number(c.balance) || 100.0);
+    row.push(Number(c.equity) || Number(c.balance) || 100.0);
+    row.push(Number(c.drawdown) || 0.0);
+    row.push(c.isLicenseActive === true || c.isLicenseActive === "true" || c.isLicenseActive == 1);
+    row.push(Number(c.expiryTimestamp) || (Date.now() + 30 * 86400000));
+    row.push(Number(c.lastActiveTime) || Date.now());
+    row.push(c.activeMode || "Safe Martingale");
+    row.push(Number(c.initialLot) || 0.01);
+    row.push(Number(c.lotStep) || 0.01);
+    row.push(Number(c.stepPoints) || 100);
+    row.push(Number(c.maxSpread) || 20);
+    row.push(Number(c.recoveryThreshold) || 30);
+    row.push(Number(c.expMultiplier) || 1.5);
+    
+    sheet.appendRow(row);
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    status: "success",
+    message: "Berhasil menyimpan " + clientsList.length + " klien ke Google Sheet secara mandiri."
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function updateIndividualClient(sheet, params) {
+  var telegram = (params.telegram || "").trim();
+  var name = (params.name || "").trim();
+  
+  if (!telegram && !name) {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "error",
+      message: "Parameter Telegram atau Name wajib diisi."
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  var lastRow = sheet.getLastRow();
+  var foundRowIdx = -1;
+  
+  var headers = [
+    "id", "name", "telegram", "balance", "equity", "drawdown", 
+    "isLicenseActive", "expiryTimestamp", "lastActiveTime", "activeMode", 
+    "initialLot", "lotStep", "stepPoints", "maxSpread", "recoveryThreshold", "expMultiplier"
+  ];
+  
+  if (lastRow > 1) {
+    var data = sheet.getRange(2, 1, lastRow - 1, headers.length).getValues();
+    for (var r = 0; r < data.length; r++) {
+      var rowTelegram = data[r][2].toString().trim();
+      var rowName = data[r][1].toString().trim();
+      
+      if (telegram && rowTelegram === telegram) {
+        foundRowIdx = r + 2;
+        break;
+      } else if (!telegram && name && rowName === name) {
+        foundRowIdx = r + 2;
+        break;
+      }
+    }
+  }
+  
+  var row = [];
+  var nextId = foundRowIdx !== -1 ? sheet.getRange(foundRowIdx, 1).getValue() : Math.max(1, lastRow);
+  
+  row.push(nextId);
+  row.push(name || (foundRowIdx !== -1 ? sheet.getRange(foundRowIdx, 2).getValue() : "Klien"));
+  row.push(telegram || (foundRowIdx !== -1 ? sheet.getRange(foundRowIdx, 3).getValue() : "@klien"));
+  row.push(params.balance !== undefined ? Number(params.balance) : (foundRowIdx !== -1 ? Number(sheet.getRange(foundRowIdx, 4).getValue()) : 100.0));
+  row.push(params.equity !== undefined ? Number(params.equity) : (foundRowIdx !== -1 ? Number(sheet.getRange(foundRowIdx, 5).getValue()) : 100.0));
+  row.push(params.drawdown !== undefined ? Number(params.drawdown) : (foundRowIdx !== -1 ? Number(sheet.getRange(foundRowIdx, 6).getValue()) : 0.0));
+  row.push(params.isLicenseActive !== undefined ? (params.isLicenseActive === "true" || params.isLicenseActive === true || params.isLicenseActive == 1) : (foundRowIdx !== -1 ? sheet.getRange(foundRowIdx, 7).getValue() : true));
+  row.push(params.expiryTimestamp !== undefined ? Number(params.expiryTimestamp) : (foundRowIdx !== -1 ? Number(sheet.getRange(foundRowIdx, 8).getValue()) : (Date.now() + 30 * 86400000)));
+  row.push(Date.now());
+  row.push(params.activeMode !== undefined ? params.activeMode : (foundRowIdx !== -1 ? sheet.getRange(foundRowIdx, 10).getValue() : "Safe Martingale"));
+  row.push(params.initialLot !== undefined ? Number(params.initialLot) : (foundRowIdx !== -1 ? Number(sheet.getRange(foundRowIdx, 11).getValue()) : 0.01));
+  row.push(params.lotStep !== undefined ? Number(params.lotStep) : (foundRowIdx !== -1 ? Number(sheet.getRange(foundRowIdx, 12).getValue()) : 0.01));
+  row.push(params.stepPoints !== undefined ? Number(params.stepPoints) : (foundRowIdx !== -1 ? Number(sheet.getRange(foundRowIdx, 13).getValue()) : 100));
+  row.push(params.maxSpread !== undefined ? Number(params.maxSpread) : (foundRowIdx !== -1 ? Number(sheet.getRange(foundRowIdx, 14).getValue()) : 20));
+  row.push(params.recoveryThreshold !== undefined ? Number(params.recoveryThreshold) : (foundRowIdx !== -1 ? Number(sheet.getRange(foundRowIdx, 15).getValue()) : 30));
+  row.push(params.expMultiplier !== undefined ? Number(params.expMultiplier) : (foundRowIdx !== -1 ? Number(sheet.getRange(foundRowIdx, 16).getValue()) : 1.5));
+  
+  if (foundRowIdx !== -1) {
+    sheet.getRange(foundRowIdx, 1, 1, headers.length).setValues([row]);
+  } else {
+    sheet.appendRow(row);
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    status: "success",
+    message: "Data klien " + (telegram || name) + " berhasil di-update secara otomatis."
+  })).setMimeType(ContentService.MimeType.JSON);
+}`;
+            document.getElementById("apps-script-code-block").value = appsScriptCode;
             
             // Render basic lists
             updateLiveTime();
@@ -1196,6 +1475,27 @@
                 if (url) {
                     pushData();
                 }
+            }
+        }
+
+        function copyAppsScriptCode() {
+            const codeArea = document.getElementById("apps-script-code-block");
+            codeArea.select();
+            codeArea.setSelectionRange(0, 99999);
+            
+            try {
+                navigator.clipboard.writeText(codeArea.value);
+                const btn = document.getElementById("btn-copy-script");
+                const orig = btn.innerHTML;
+                btn.innerHTML = `<i class="fa-solid fa-check text-successGreen"></i> Kode Berhasil Disalin!`;
+                btn.classList.add("bg-successGreen/20", "text-successGreen");
+                setTimeout(() => {
+                    btn.innerHTML = orig;
+                    btn.classList.remove("bg-successGreen/20", "text-successGreen");
+                }, 2000);
+                logger("Sync", "Kode Apps Script berhasil disalin ke clipboard!");
+            } catch (err) {
+                alert("Gagal menyalin otomatis. Silakan salin teks di dalam kotak secara manual.");
             }
         }
     </script>

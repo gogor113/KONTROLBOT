@@ -844,6 +844,7 @@ fun AddClientDialog(
     var telegram by remember { mutableStateOf("") }
     var balance by remember { mutableStateOf("") }
     var selectedMode by remember { mutableStateOf("MODE_BOTH") }
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -861,6 +862,14 @@ fun AddClientDialog(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Nama Lengkap") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Next
+                    ),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                        onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) }
+                    ),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = TealLight,
                         focusedLabelColor = TealLight,
@@ -879,6 +888,14 @@ fun AddClientDialog(
                     onValueChange = { telegram = it },
                     label = { Text("Telegram Username") },
                     placeholder = { Text("@andrianto13") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Next
+                    ),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                        onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) }
+                    ),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = TealLight,
                         focusedLabelColor = TealLight,
@@ -894,7 +911,14 @@ fun AddClientDialog(
                     value = balance,
                     onValueChange = { balance = it },
                     label = { Text("Initial Balance (USD)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Done
+                    ),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                        onDone = { focusManager.clearFocus() }
+                    ),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = TealLight,
                         focusedLabelColor = TealLight,
@@ -968,6 +992,7 @@ fun EditParametersDialog(
     var maxSpread by remember { mutableStateOf(client.maxSpread.toString()) }
     var recoveryThreshold by remember { mutableStateOf(client.recoveryThreshold.toString()) }
     var expMultiplier by remember { mutableStateOf(client.expMultiplier.toString()) }
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -988,7 +1013,14 @@ fun EditParametersDialog(
                         value = initialLot,
                         onValueChange = { initialLot = it },
                         label = { Text("Initial Lot") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Decimal,
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Next
+                        ),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                            onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Right) }
+                        ),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = TextLight, unfocusedTextColor = TextLight,
                             focusedBorderColor = TealLight, unfocusedBorderColor = BorderGray
@@ -999,7 +1031,14 @@ fun EditParametersDialog(
                         value = lotStep,
                         onValueChange = { lotStep = it },
                         label = { Text("Lot Step") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Decimal,
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Next
+                        ),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                            onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) }
+                        ),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = TextLight, unfocusedTextColor = TextLight,
                             focusedBorderColor = TealLight, unfocusedBorderColor = BorderGray
@@ -1013,7 +1052,14 @@ fun EditParametersDialog(
                         value = stepPoints,
                         onValueChange = { stepPoints = it },
                         label = { Text("Step Points") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Next
+                        ),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                            onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Right) }
+                        ),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = TextLight, unfocusedTextColor = TextLight,
                             focusedBorderColor = TealLight, unfocusedBorderColor = BorderGray
@@ -1024,7 +1070,14 @@ fun EditParametersDialog(
                         value = maxSpread,
                         onValueChange = { maxSpread = it },
                         label = { Text("Max Spread") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Next
+                        ),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                            onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) }
+                        ),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = TextLight, unfocusedTextColor = TextLight,
                             focusedBorderColor = TealLight, unfocusedBorderColor = BorderGray
@@ -1038,7 +1091,14 @@ fun EditParametersDialog(
                         value = recoveryThreshold,
                         onValueChange = { recoveryThreshold = it },
                         label = { Text("Recovery Thresh") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Next
+                        ),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                            onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Right) }
+                        ),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = TextLight, unfocusedTextColor = TextLight,
                             focusedBorderColor = TealLight, unfocusedBorderColor = BorderGray
@@ -1049,7 +1109,14 @@ fun EditParametersDialog(
                         value = expMultiplier,
                         onValueChange = { expMultiplier = it },
                         label = { Text("Exp Multiplier") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Decimal,
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Done
+                        ),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                            onDone = { focusManager.clearFocus() }
+                        ),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = TextLight, unfocusedTextColor = TextLight,
                             focusedBorderColor = TealLight, unfocusedBorderColor = BorderGray
@@ -2586,8 +2653,13 @@ function doGet(e) {
   var action = e.parameter.action;
   if (action == "read") return getClientsJson();
   if (action == "update_client") return handleSingleClientUpdate(e.parameter);
-  return ContentService.createTextOutput(JSON.stringify({status: "error", message: "Aksi tidak dikenal"}))
-    .setMimeType(ContentService.MimeType.JSON);
+  
+  // Serve dynamic premium visual dashboard reading from the active sheet in browser
+  var html = getHtmlDashboard();
+  return HtmlService.createHtmlOutput(html)
+    .setTitle("GOGOR BOT Control Panel")
+    .addMetaTag("viewport", "width=device-width, initial-scale=1")
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 function doPost(e) {
@@ -2719,6 +2791,105 @@ function getHeaders(sheet) {
     "isLicenseActive", "expiryTimestamp", "lastActiveTime", "activeMode",
     "initialLot", "lotStep", "stepPoints", "maxSpread", "recoveryThreshold", "expMultiplier"
   ];
+}
+
+function getHtmlDashboard() {
+  var sheet = getOrCreateSheet();
+  var data = sheet.getDataRange().getValues();
+  var headers = data.length > 0 ? data[0] : [];
+  var clientsList = [];
+  
+  var totalBalance = 0;
+  var totalEquity = 0;
+  var activeLicenseCount = 0;
+  
+  if (data.length > 1) {
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var client = {};
+      for (var j = 0; j < headers.length; j++) {
+        client[headers[j]] = row[j];
+      }
+      if (client.telegram) {
+        client.balance = Number(client.balance) || 0;
+        client.equity = Number(client.equity) || 0;
+        client.drawdown = Number(client.drawdown) || 0;
+        client.isLicenseActive = (client.isLicenseActive === true || client.isLicenseActive === "true" || client.isLicenseActive == 1);
+        
+        totalBalance += client.balance;
+        totalEquity += client.equity;
+        if (client.isLicenseActive) activeLicenseCount++;
+        
+        clientsList.push(client);
+      }
+    }
+  }
+
+  var liveTimeStr = Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss");
+
+  var html = '<!DOCTYPE html><html><head>' +
+    '<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">' +
+    '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">' +
+    '</head><body class="bg-gray-900 text-gray-100 font-sans min-h-screen p-4 md:p-8">' +
+    '<div class="max-w-6xl mx-auto space-y-6">' +
+    '<div class="flex flex-col md:flex-row md:items-center md:justify-between bg-gray-800 p-6 rounded-2xl border border-gray-700">' +
+    '<div class="flex items-center space-x-4">' +
+    '<div class="h-12 w-12 bg-teal-500 rounded-xl flex items-center justify-center text-gray-900 shadow-md shadow-teal-500/20">' +
+    '<i class="fa-solid fa-robot text-2xl"></i>' +
+    '</div>' +
+    '<div>' +
+    '<h1 class="text-xl font-extrabold text-white">GOGOR SYSTEM WEB DASHBOARD</h1>' +
+    '<p class="text-xs text-gray-400">Database monitor EA terpusat di Google Sheets</p>' +
+    '</div>' +
+    '</div>' +
+    '<div class="mt-4 md:mt-0 bg-gray-950 px-4 py-2 rounded-xl text-center md:text-right border border-gray-800">' +
+    '<p class="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Terakhir Disinkronkan</p>' +
+    '<p class="text-xs font-mono text-teal-400 font-bold">' + liveTimeStr + ' (WIB)</p>' +
+    '</div>' +
+    '</div>' +
+    '<div class="grid grid-cols-1 sm:grid-cols-3 gap-6">' +
+    '<div class="bg-gray-800 border border-gray-700 p-5 rounded-2xl relative overflow-hidden">' +
+    '<p class="text-xs font-semibold text-gray-400 uppercase">Total Akun Ea Terdaftar</p>' +
+    '<h2 class="text-3xl font-black text-white mt-1">' + clientsList.length + '</h2>' +
+    '<p class="text-[10px] text-teal-400 mt-2"><i class="fa-solid fa-circle-check"></i> ' + activeLicenseCount + ' Lisensi Aktif</p>' +
+    '</div>' +
+    '<div class="bg-gray-800 border border-gray-700 p-5 rounded-2xl relative overflow-hidden">' +
+    '<p class="text-xs font-semibold text-gray-400 uppercase">Akumulasi Saldo (Balance)</p>' +
+    '<h2 class="text-3xl font-black text-white mt-1">$' + totalBalance.toFixed(2) + '</h2>' +
+    '<p class="text-[10px] text-gray-400 mt-2">Modal perdagangan MetaTrader 5</p>' +
+    '</div>' +
+    '<div class="bg-gray-800 border border-gray-700 p-5 rounded-2xl relative overflow-hidden">' +
+    '<p class="text-xs font-semibold text-gray-400 uppercase">Akumulasi Ekuitas (Equity)</p>' +
+    '<h2 class="text-3xl font-black text-white mt-1">$' + totalEquity.toFixed(2) + '</h2>' +
+    '<p class="text-[10px] text-red-400 mt-2"><i class="fa-solid fa-chart-line"></i> Drawdown EA: ' + 
+    (totalBalance > 0 ? (((totalBalance - totalEquity) / totalBalance) * 100).toFixed(2) : '0.00') + '%</p>' +
+    '</div>' +
+    '</div>' +
+    '<div class="bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-xl">' +
+    '<h3 class="text-md font-extrabold text-white mb-4 flex items-center gap-2"><i class="fa-solid fa-users text-teal-400"></i> Daftar Aktif Subscriber</h3>' +
+    '<div class="overflow-x-auto"><table class="w-full text-left border-collapse text-sm">' +
+    '<thead><tr class="border-b border-gray-700 text-gray-400 text-xs uppercase"><th class="pb-3 font-semibold">Nama & Telegram</th><th class="pb-3 font-semibold">EA Mode</th><th class="pb-3 font-semibold">Balance</th><th class="pb-3 font-semibold">Equity</th><th class="pb-3 font-semibold text-center">Drawdown</th><th class="pb-3 font-semibold text-center">Lisensi</th></tr></thead>' +
+    '<tbody class="divide-y divide-gray-700/50">';
+  if (clientsList.length === 0) {
+    html += '<tr><td colspan="6" class="text-center py-10 text-gray-500">Belum ada subscriber terdaftar.</td></tr>';
+  } else {
+    for (var k = 0; k < clientsList.length; k++) {
+      var c = clientsList[k];
+      var isExpired = !c.isLicenseActive;
+      html += '<tr class="hover:bg-gray-700/30 transition">' +
+        '<td class="py-3 font-bold text-white"><span class="block">' + c.name + '</span><span class="text-xs text-teal-400 font-mono">' + c.telegram + '</span></td>' +
+        '<td class="py-3 text-gray-300 font-medium">' + (c.activeMode || 'Safe Martingale') + '</td>' +
+        '<td class="py-3 font-mono font-bold">$' + Number(c.balance).toFixed(2) + '</td>' +
+        '<td class="py-3 font-mono">$' + Number(c.equity).toFixed(2) + '</td>' +
+        '<td class="py-3 font-mono text-center font-bold ' + (c.drawdown > 15 ? 'text-red-400' : 'text-green-400') + '">' + Number(c.drawdown).toFixed(2) + '%</td>' +
+        '<td class="py-3 text-center"><span class="px-2.5 py-1 text-[10px] font-extrabold rounded-full ' + (isExpired ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-green-500/10 text-green-400 border border-green-500/20') + '">' + (isExpired ? 'EXPIRED' : 'ACTIVE') + '</span></td>' +
+        '</tr>';
+    }
+  }
+  html += '</tbody></table></div></div>' +
+    '<div class="text-center text-xs text-gray-500 py-4">&copy; 2026 GOGOR SYSTEM INC. ALL RIGHTS RESERVED.</div>' +
+    '</div></body></html>';
+  return html;
 }
 
 function createJsonResponse(obj) {

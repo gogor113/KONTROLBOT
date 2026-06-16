@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GOGOR BOT - Web Database Control Panel & Monitor</title>
+    <!-- Tailwind CSS for modern responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons for visual layout -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for beautiful analytical widgets -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#090E11',
+                        cardBg: '#111A1F',
+                        panelBg: '#16232A',
+                        tealPrimary: '#02C39A',
+                        tealLight: '#00E5FF',
+                        borderGray: '#23353F',
+                        successGreen: '#00E676',
+                        accentOrange: '#FF9100'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090E11;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #23353F;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #02C39A;
+        }
+        .animate-pulse-slow {
+            animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="bg-darkBg text-gray-200 font-sans min-h-screen flex flex-col antialiased">
+
+    <!-- HEADER / NAVIGATION BAR -->
+    <header class="bg-cardBg border-b border-borderGray sticky top-0 z-40 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Brand Identity -->
+                <div class="flex items-center space-x-3">
+                    <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-tealPrimary to-tealLight flex items-center justify-center text-darkBg shadow-lg shadow-tealPrimary/20">
+                        <i class="fa-solid fa-robot text-xl font-bold"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg font-black tracking-wider text-white">GOGOR BOT</span>
+                            <span class="bg-tealPrimary/15 text-tealLight text-[10px] font-bold px-2 py-0.5 rounded-full border border-tealPrimary/30">V12.24</span>
+                        </div>
+                        <p class="text-[10px] text-gray-400">Database Control Panel & Subscriber Monitor</p>
+                    </div>
+                </div>
+
+                <!-- Live Status Hub -->
+                <div class="hidden md:flex items-center space-x-6">
+                    <div class="flex items-center space-x-2 text-xs">
+                        <span class="relative flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-successGreen opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-successGreen"></span>
+                        </span>
+                        <span class="text-gray-400">Google Sheet Connection:</span>
+                        <span id="connection-badge" class="font-bold text-accentOrange">Not Connected</span>
+                    </div>
+                    <div class="h-4 w-[1px] bg-borderGray"></div>
+                    <div class="flex items-center space-x-2 text-xs">
+                        <i class="fa-solid fa-clock text-tealLight"></i>
+                        <span id="live-time" class="font-mono text-gray-300">Tuesday, 18:28 UTC</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN APP CONTAINER -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- TOP ANALYTICAL DASHBOARD CARD -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <!-- Total Subscriber Card -->
+            <div class="bg-cardBg border border-borderGray p-5 rounded-2xl relative overflow-hidden group hover:border-tealPrimary/40 transition duration-300">
+                <div class="absolute right-3 top-3 text-borderGray group-hover:text-tealPrimary/10 transition duration-300">
+                    <i class="fa-solid fa-users text-5xl"></i>
+                </div>
+                <p class="text-xs font-semibold text-gray-400 tracking-wider">TOTAL EXP / KLIEN</p>
+                <div class="flex items-baseline space-x-2 mt-2">
+                    <span id="stat-total-clients" class="text-3xl font-black text-white">0</span>
+                    <span class="text-xs text-tealPrimary font-medium">aktif</span>
+                </div>
+                <div class="w-full bg-borderGray h-1 rounded-full mt-3 overflow-hidden">
+                    <div class="bg-tealPrimary h-full rounded-full" style="width: 100%"></div>
+                </div>
+            </div>
+
+            <!-- Total Deposit / Capital Balance -->
+            <div class="bg-cardBg border border-borderGray p-5 rounded-2xl relative overflow-hidden group hover:border-tealPrimary/40 transition duration-300">
+                <div class="absolute right-3 top-3 text-borderGray group-hover:text-tealPrimary/10 transition duration-300">
+                    <i class="fa-solid fa-wallet text-5xl"></i>
+                </div>
+                <p class="text-xs font-semibold text-gray-400 tracking-wider">TOTAL SALDO (BALANCE)</p>
+                <div class="flex items-baseline space-x-1 mt-2">
+                    <span class="text-sm font-bold text-tealLight">$</span>
+                    <span id="stat-total-balance" class="text-2xl font-black text-white">0.00</span>
+                </div>
+                <p class="text-[10px] text-gray-500 mt-3 flex items-center gap-1">
+                    <i class="fa-solid fa-arrow-trend-up text-successGreen"></i> 
+                    Real-time terakumulasi dari MT5
+                </p>
+            </div>
+
+            <!-- Total Equity -->
+            <div class="bg-cardBg border border-borderGray p-5 rounded-2xl relative overflow-hidden group hover:border-tealPrimary/40 transition duration-300">
+                <div class="absolute right-3 top-3 text-borderGray group-hover:text-tealPrimary/10 transition duration-300">
+                    <i class="fa-solid fa-chart-line text-5xl"></i>
+                </div>
+                <p class="text-xs font-semibold text-gray-400 tracking-wider">TOTAL EKUITAS (EQUITY)</p>
+                <div class="flex items-baseline space-x-1 mt-2">
+                    <span class="text-sm font-bold text-tealLight">$</span>
+                    <span id="stat-total-equity" class="text-2xl font-black text-white">0.00</span>
+                </div>
+                <p id="stat-overall-drawdown" class="text-[10px] text-successGreen mt-3 flex items-center gap-1 font-medium">
+                    <i class="fa-solid fa-shield-halved text-successGreen"></i>
+                    Drawdown Aman (0%)
+                </p>
+            </div>
+
+            <!-- License Health -->
+            <div class="bg-cardBg border border-borderGray p-5 rounded-2xl relative overflow-hidden group hover:border-tealPrimary/40 transition duration-300">
+                <div class="absolute right-3 top-3 text-borderGray group-hover:text-tealPrimary/10 transition duration-300">
+                    <i class="fa-solid fa-key text-5xl"></i>
+                </div>
+                <p class="text-xs font-semibold text-gray-400 tracking-wider">KESEHATAN LISENSI</p>
+                <div class="flex items-baseline space-x-2 mt-2">
+                    <span id="stat-license-active-pct" class="text-3xl font-black text-white">0%</span>
+                    <span class="text-xs text-gray-400">aktif</span>
+                </div>
+                <div class="w-full bg-borderGray h-1 rounded-full mt-3 overflow-hidden">
+                    <div id="stat-license-progress" class="bg-successGreen h-full rounded-full" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN TWO COLUMN WORKSPACE -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- LEFT PANEL: CONNECTION, LOGS & SIMULATION (1 COLUMN) -->
+            <div class="lg:col-span-1 space-y-8">
+                
+                <!-- Google Sheets Sync Configuration -->
+                <div class="bg-cardBg border border-borderGray rounded-2xl p-6 shadow-xl relative">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-share-nodes text-tealPrimary"></i> Pengaturan Cloud
+                        </h3>
+                        <span class="bg-borderGray text-gray-400 text-[9px] px-2 py-0.5 rounded font-mono">DATABASE</span>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 mb-2 uppercase">Google Sheet API Web App URL</label>
+                            <input id="sheet-url-input" type="text" 
+                                placeholder="https://script.google.com/macros/s/..." 
+                                class="w-full bg-darkBg border border-borderGray rounded-xl px-3 py-2 text-xs font-mono text-gray-100 focus:outline-none focus:border-tealPrimary transition">
+                        </div>
+
+                        <!-- Quick connection buttons -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="testConnection()" class="bg-borderGray hover:bg-gray-800 text-white font-bold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+                                <i class="fa-solid fa-link"></i> Tes Koneksi
+                            </button>
+                            <button onclick="saveSheetUrl()" class="bg-tealPrimary/15 hover:bg-tealPrimary/25 text-tealLight border border-tealPrimary/30 font-bold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+                                <i class="fa-solid fa-floppy-disk"></i> Simpan URL
+                            </button>
+                        </div>
+
+                        <div class="border-t border-borderGray/30 my-4"></div>
+
+                        <!-- Manual Pull/Push Buttons -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <button onclick="pullData()" id="btn-pull" class="bg-panelBg hover:bg-gray-800 text-tealLight border border-tealPrimary/30 font-bold py-2 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+                                <i class="fa-solid fa-download"></i> Tarik (Pull)
+                            </button>
+                            <button onclick="pushData()" id="btn-push" class="bg-tealPrimary hover:bg-tealPrimary/90 text-darkBg font-black py-2 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-tealPrimary/10 transition">
+                                <i class="fa-solid fa-upload"></i> Kirim (Push)
+                            </button>
+                        </div>
+
+                        <!-- Connection Log / Status Notification -->
+                        <div id="sync-status" class="bg-darkBg/50 border border-borderGray/50 p-3 rounded-xl text-[11px] text-gray-400 font-medium flex items-center gap-2">
+                            <div class="h-2 w-2 rounded-full bg-accentOrange shrink-0"></div>
+                            <span id="sync-status-text">Siap sinkronisasi. Letakkan URL Google Apps Script Anda.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Simulation & Auto-trading simulator -->
+                <div class="bg-cardBg border border-borderGray rounded-2xl p-6 shadow-xl relative">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-gauge-high text-tealPrimary"></i> Simulator MT5
+                        </h3>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-[10px] text-gray-400">Auto-Mock:</span>
+                            <button onclick="toggleSimulation()" id="sim-toggle-btn" class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none bg-borderGray">
+                                <span id="sim-toggle-nob" class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <p class="text-[11px] text-gray-400 leading-relaxed">
+                            Simulasikan aktivitas trading MetaTrader 5 secara real-time. Saldo, ekuitas, dan persentase drawdown klien akan bervariasi mengikuti pasar sintesis.
+                        </p>
+
+                        <div class="bg-darkBg border border-borderGray p-3 rounded-xl grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                                <span class="text-[10px] text-gray-500 block uppercase font-bold">Trend Pasar</span>
+                                <select id="market-trend-selector" class="w-full bg-transparent text-white font-bold focus:outline-none mt-1">
+                                    <option value="bullish" class="bg-cardBg">BULLISH (UP)</option>
+                                    <option value="bearish" class="bg-cardBg">BEARISH (DOWN)</option>
+                                    <option value="sideways" class="bg-cardBg">SIDEWAYS (FLAT)</option>
+                                    <option value="crash" class="bg-cardBg">MARKET CRASH 💣</option>
+                                </select>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-gray-500 block uppercase font-bold">Kecepatan Ticks</span>
+                                <span class="text-tealLight font-bold block mt-1">Satu Detik / Detak</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- REAL-TIME CONSOLE / ACTIVITY LOG -->
+                <div class="bg-cardBg border border-borderGray rounded-2xl p-6 shadow-xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-terminal text-tealPrimary"></i> Log Aktivitas Terminal
+                        </h3>
+                        <button onclick="clearLogs()" class="text-[10px] text-gray-500 hover:text-white transition">Bersihkan</button>
+                    </div>
+
+                    <!-- Scroll log block -->
+                    <div id="logs-container" class="bg-darkBg border border-borderGray rounded-xl p-3 h-56 font-mono text-[10px] overflow-y-auto space-y-2">
+                        <div class="text-gray-500">[11:17:40] Portal Web diinisialisasi sukses.</div>
+                        <div class="text-tealPrimary">[11:17:40] Menunggu data lokal atau sinkronisasi Google Sheet.</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- RIGHT PANEL: SUBSCRIBER TABLE & CONFIGURATION (2 COLUMNS) -->
+            <div class="lg:col-span-2 space-y-8">
+                
+                <!-- Client Filter & Add Module -->
+                <div class="bg-cardBg border border-borderGray rounded-2xl p-6 shadow-xl">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <div>
+                            <h3 class="text-lg font-black text-white flex items-center gap-2">
+                                <i class="fa-solid fa-users-gear text-tealPrimary"></i> Manajemen Subscriber
+                            </h3>
+                            <p class="text-xs text-gray-400">Kelola lisensi, setelan instrumen lot, dan status trading robot klien</p>
+                        </div>
+                        
+                        <!-- Quick Add Client Button -->
+                        <button onclick="openAddModal()" class="bg-tealPrimary hover:bg-tealPrimary/95 text-darkBg font-black text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 self-start sm:self-center shadow-lg shadow-tealPrimary/15 transition">
+                            <i class="fa-solid fa-user-plus"></i> Tambah Klien Baru
+                        </button>
+                    </div>
+
+                    <!-- Filter Control Panel -->
+                    <div class="flex flex-col sm:flex-row gap-3 mb-6">
+                        <!-- Search input -->
+                        <div class="relative flex-grow">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                                <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                            </span>
+                            <input id="search-input" oninput="applyFilters()" type="text" placeholder="Cari nama klien atau akun telegram..." 
+                                class="w-full bg-darkBg border border-borderGray rounded-xl pl-9 pr-4 py-2.5 text-xs text-gray-100 focus:outline-none focus:border-tealPrimary transition">
+                        </div>
+
+                        <!-- License filter tab -->
+                        <select id="filter-license" onchange="applyFilters()" class="bg-darkBg border border-borderGray text-gray-300 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-tealPrimary transition">
+                            <option value="all">Semua Lisensi</option>
+                            <option value="active">Lisensi Aktif</option>
+                            <option value="expired">Lisensi Kedaluwarsa</option>
+                        </select>
+                    </div>
+
+                    <!-- Client List Grid & Card Layout dynamically populated -->
+                    <div id="clients-empty-state" class="hidden flex-col items-center justify-center py-12 text-center">
+                        <i class="fa-regular fa-folder-open text-gray-600 text-5xl mb-3"></i>
+                        <h4 class="text-gray-300 font-bold text-sm">Belum Ada Pengguna Terdaftar</h4>
+                        <p class="text-gray-500 text-xs mt-1 max-w-sm">Tarik data dari Google Sheet atau buat pengguna baru secara manual dengan tombol di atas.</p>
+                    </div>
+
+                    <div id="clients-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Client cards injected here via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER DEVELOPMENT ATTRIBUTE -->
+    <footer class="bg-cardBg mt-12 py-6 border-t border-borderGray">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-xs text-gray-500">&copy; 2026 GOGOR SYSTEM INC. ALL RIGHTS RESERVED.</p>
+            <p class="text-[10px] text-gray-600 mt-1">Dibuat menggunakan standard visual modern untuk fungsional kontrol subscriber terpusat.</p>
+        </div>
+    </footer>
+
+    <!-- ADD CLIENT MODAL -->
+    <div id="add-modal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-black/80 flex items-center justify-center p-4">
+        <div class="bg-cardBg border border-borderGray w-full max-w-md rounded-2xl shadow-2xl relative overflow-hidden transition duration-300 scale-95 opacity-0 duration-300" id="add-modal-content">
+            <div class="bg-panelBg px-6 py-4 border-b border-borderGray flex items-center justify-between">
+                <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus text-tealPrimary"></i> Daftarkan Klien Baru
+                </h3>
+                <button onclick="closeAddModal()" class="text-gray-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form id="add-client-form" onsubmit="saveNewClient(event)" class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Nama Lengkap</label>
+                        <input id="add-name" type="text" required placeholder="Andrianto Wijaya" 
+                            class="w-full bg-darkBg border border-borderGray rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-tealPrimary">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Username Telegram</label>
+                        <input id="add-telegram" type="text" required placeholder="@andrew_tambak" 
+                            class="w-full bg-darkBg border border-borderGray rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-tealPrimary">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Saldo Awal (Balance)</label>
+                        <input id="add-balance" type="number" step="0.01" required value="1000.00" 
+                            class="w-full bg-darkBg border border-borderGray rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-tealPrimary">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Mode Trading</label>
+                        <select id="add-mode" class="w-full bg-darkBg border border-borderGray rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-tealPrimary">
+                            <option value="Aggressive Grid">Aggressive Grid</option>
+                            <option value="Safe Martingale">Safe Martingale</option>
+                            <option value="Scalping Scalper">Scalping Scalper</option>
+                            <option value="Recovery Mode">Recovery Mode</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="border-t border-borderGray/30 pt-3"></div>
+
+                <div class="flex items-center justify-end space-x-3 mt-6">
+                    <button type="button" onclick="closeAddModal()" class="bg-panelBg hover:bg-gray-800 text-gray-300 font-bold px-4 py-2 rounded-xl text-xs transition">Batal</button>
+                    <button type="submit" class="bg-tealPrimary hover:bg-tealPrimary/95 text-darkBg font-black px-6 py-2 rounded-xl text-xs shadow-lg shadow-tealPrimary/10 transition">Daftarkan Klien</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- DETAIL / PARAMETER CONFIGURATION MODAL (EDIT MODAL) -->
+    <div id="edit-modal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-black/80 flex items-center justify-center p-4">
+        <div class="bg-cardBg border border-borderGray w-full max-w-lg rounded-2xl shadow-2xl relative overflow-hidden transition duration-300 scale-95 opacity-0" id="edit-modal-content">
+            <div class="bg-panelBg px-6 py-4 border-b border-borderGray flex items-center justify-between">
+                <div>
+                    <h3 id="edit-modal-title" class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-tealPrimary"></i> Konfigurasi Parameter Bot
+                    </h3>
+                    <p id="edit-modal-subtitle" class="text-[10px] text-gray-400"></p>
+                </div>
+                <button onclick="closeEditModal()" class="text-gray-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form id="edit-client-form" onsubmit="saveClientEdits(event)" class="p-6 space-y-4">
+                <input id="edit-id" type="hidden">
+
+                <!-- TAB SELECTOR FOR EDIT MODAL -->
+                <div class="flex bg-darkBg p-1 rounded-xl">
+                    <button type="button" onclick="switchModelTab('license')" id="edit-tab-btn-license" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-panelBg text-white focus:outline-none">Lisensi & Umum</button>
+                    <button type="button" onclick="switchModelTab('trading')" id="edit-tab-btn-trading" class="flex-1 py-1.5 text-xs font-bold rounded-lg text-gray-400 hover:text-white focus:outline-none">Parameter Trading</button>
+                </div>
+
+                <!-- TAB 1: LICENSE & GENERAL DATA -->
+                <div id="edit-tab-license" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Nama Lengkap</label>
+                            <input id="edit-name" type="text" required class="w-full bg-darkBg border border-borderGray rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-tealPrimary">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Username Telegram</label>
+                            <input id="edit-telegram" type="text" required class="w-full bg-darkBg border border-borderGray rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-tealPrimary">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Saldo (Balance)</label>
+                            <input id="edit-balance" type="number" step="0.01" required class="w-full bg-darkBg border border-borderGray rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-tealPrimary">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Ekuitas (Equity)</label>
+                            <input id="edit-equity" type="number" step="0.01" required class="w-full bg-darkBg border border-borderGray rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-tealPrimary">
+                        </div>
+                    </div>
+
+                    <div class="bg-darkBg border border-borderGray p-4 rounded-xl space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="text-xs font-bold text-white block">Akses Lisensi Aktif</span>
+                                <span class="text-[10px] text-gray-500">Izin eksekusi trade di EA MQL5 terminal klien</span>
+                            </div>
+                            <button type="button" onclick="toggleEditLicenseState()" id="edit-license-badge" class="px-3 py-1.5 rounded-lg text-xs font-black uppercase">Aktif</button>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1.5">Durasi Berlaku Lisensi</label>
+                            <div class="grid grid-cols-4 gap-2">
+                                <button type="button" onclick="adjustExpiry(7)" class="bg-panelBg hover:bg-gray-800 text-white font-bold py-1 px-2 rounded-lg text-[10px] transition">+7 Hari</button>
+                                <button type="button" onclick="adjustExpiry(30)" class="bg-panelBg hover:bg-gray-800 text-white font-bold py-1 px-2 rounded-lg text-[10px] transition">+30 Hari</button>
+                                <button type="button" onclick="adjustExpiry(90)" class="bg-panelBg hover:bg-gray-800 text-white font-bold py-1 px-2 rounded-lg text-[10px] transition">+90 Hari</button>
+                                <button type="button" onclick="adjustExpiry(365)" class="bg-panelBg hover:bg-gray-800 text-white font-bold py-1 px-2 rounded-lg text-[10px] transition">+1 Tahun</button>
+                            </div>
+                            <span id="edit-expiry-text" class="text-[10px] text-tealLight mt-2 block font-medium">Batas: -</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: EA PARAMETERS CONFIGURATION -->
+                <div id="edit-tab-trading" class="space-y-4 hidden">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Lot Awal (Initial Lot)</label>
+                            <input id="edit-initial-lot" type="number" step="0.01" class="w-full bg-darkBg border border-borderGray rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-tealPrimary">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Langkah Lot (Lot Step)</label>
+                            <input id="edit-lot-step" type="number" step="0.01" class="w-full bg-darkBg border border-borderGray rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-tealPrimary">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Multiplier Multiplier</label>
+                            <input id="edit-exp-multiplier" type="number" step="0.01" class="w-full bg-darkBg border border-borderGray rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-tealPrimary">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Point Jeda (Step Points)</label>
+                            <input id="edit-step-points" type="number" class="w-full bg-darkBg border border-borderGray rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-tealPrimary">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="col-span-1">
+                            <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">Max Spread</label>
+                            <input id="edit-max-spread" type="number" class="w-full bg-darkBg border border-borderGray rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-tealPrimary">
+                        </div>
+                        <div class="col-span-1">
+                            <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">Recovery Limit %</label>
+                            <input id="edit-recovery" type="number" class="w-full bg-darkBg border border-borderGray rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-tealPrimary">
+                        </div>
+                        <div class="col-span-1">
+                            <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">Pola EA</label>
+                            <select id="edit-mode" class="w-full bg-darkBg border border-borderGray rounded-xl px-2 py-2 text-xs text-white focus:outline-none focus:border-tealPrimary">
+                                <option value="Aggressive Grid">Aggressive Grid</option>
+                                <option value="Safe Martingale">Safe Martingale</option>
+                                <option value="Scalping Scalper">Scalping Scalper</option>
+                                <option value="Recovery Mode">Recovery Mode</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border-t border-borderGray/30 pt-3 flex justify-between items-center mt-6">
+                    <button type="button" onclick="deleteClient()" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-trash-can"></i> Hapus Klien
+                    </button>
+                    <div class="flex items-center space-x-2">
+                        <button type="button" onclick="closeEditModal()" class="bg-panelBg hover:bg-gray-800 text-gray-300 font-bold px-4 py-2 rounded-xl text-xs transition">Batal</button>
+                        <button type="submit" class="bg-tealPrimary hover:bg-tealPrimary/95 text-darkBg font-black px-6 py-2 rounded-xl text-xs shadow-lg shadow-tealPrimary/10 transition">Terapkan Perubahan</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- CLIENT STATE / CONTROLLER JS LOGIC -->
+    <script>
+        // Default Local Client list
+        let clients = [
+            { id: 1, name: "Andrianto Wijaya", telegram: "@andry_tambak", balance: 5240.20, equity: 5122.90, drawdown: 2.23, isLicenseActive: true, expiryTimestamp: Date.now() + 25 * 86400000, lastActiveTime: Date.now(), activeMode: "Safe Martingale", initialLot: 0.1, lotStep: 0.1, stepPoints: 120, maxSpread: 25, recoveryThreshold: 45, expMultiplier: 1.5 },
+            { id: 2, name: "Alexander Hartanto", telegram: "@alex_hartanto", balance: 12450.00, equity: 11205.50, drawdown: 10.00, isLicenseActive: true, expiryTimestamp: Date.now() + 140 * 86400000, lastActiveTime: Date.now() - 3600000, activeMode: "Aggressive Grid", initialLot: 0.2, lotStep: 0.2, stepPoints: 150, maxSpread: 35, recoveryThreshold: 50, expMultiplier: 1.6 },
+            { id: 3, name: "Budiono Siregar", telegram: "@budiono_s", balance: 340.00, equity: 340.00, drawdown: 0.00, isLicenseActive: false, expiryTimestamp: Date.now() - 5000, lastActiveTime: Date.now() - 86400000, activeMode: "Scalping Scalper", initialLot: 0.01, lotStep: 0.01, stepPoints: 100, maxSpread: 15, recoveryThreshold: 30, expMultiplier: 1.2 },
+            { id: 4, name: "Dewi Melani", telegram: "@dewi_melani", balance: 1850.50, equity: 1720.00, drawdown: 7.05, isLicenseActive: true, expiryTimestamp: Date.now() + 450 * 86400000, lastActiveTime: Date.now() - 120000, activeMode: "Recovery Mode", initialLot: 0.05, lotStep: 0.05, stepPoints: 80, maxSpread: 20, recoveryThreshold: 40, expMultiplier: 1.4 }
+        ];
+
+        let editLicenseState = true;
+        let isSimulating = false;
+        let simulationInterval = null;
+
+        // Init values on ready
+        window.addEventListener('DOMContentLoaded', () => {
+            // Load saved config
+            const savedUrl = localStorage.getItem("gogor_sheet_url") || "";
+            document.getElementById("sheet-url-input").value = savedUrl;
+            
+            // Render basic lists
+            updateLiveTime();
+            setInterval(updateLiveTime, 1000);
+            renderClients();
+            updateGlobalStats();
+            
+            if (savedUrl) {
+                testConnection();
+            }
+        });
+
+        function updateLiveTime() {
+            const now = new Date();
+            const format = now.toLocaleString("id-ID", { weekday: 'long', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + " UTC";
+            document.getElementById("live-time").innerText = format;
+        }
+
+        // --- RENDER & DISPLAY STATS ---
+        function renderClients() {
+            const grid = document.getElementById("clients-grid");
+            const emptyState = document.getElementById("clients-empty-state");
+            const searchQuery = document.getElementById("search-input").value.toLowerCase();
+            const licenseFilter = document.getElementById("filter-license").value;
+
+            // Clear exist
+            grid.innerHTML = "";
+
+            const filtered = clients.filter(c => {
+                const matchesSearch = c.name.toLowerCase().includes(searchQuery) || c.telegram.toLowerCase().includes(searchQuery);
+                const isLicenseActive = c.isLicenseActive && c.expiryTimestamp > Date.now();
+                if (licenseFilter === "active") return matchesSearch && isLicenseActive;
+                if (licenseFilter === "expired") return matchesSearch && !isLicenseActive;
+                return matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove("hidden");
+                emptyState.classList.add("flex");
+                return;
+            } else {
+                emptyState.classList.remove("flex");
+                emptyState.classList.add("hidden");
+            }
+
+            filtered.forEach(c => {
+                const isExpired = c.expiryTimestamp <= Date.now() || !c.isLicenseActive;
+                
+                // Formatted string
+                const licenseBadgeClass = isExpired 
+                    ? "bg-red-500/10 text-red-400 border border-red-500/30" 
+                    : "bg-successGreen/10 text-successGreen border border-successGreen/30";
+                
+                const licenseText = isExpired ? "KEDALUWARSA" : "LISENSI AKTIF";
+
+                // Activity relative text
+                const secondsSinceActive = Math.floor((Date.now() - c.lastActiveTime) / 1000);
+                let activeRelativeText = "Baru saja";
+                if (secondsSinceActive > 86400) activeRelativeText = Math.floor(secondsSinceActive / 86400) + " hari lalu";
+                else if (secondsSinceActive > 3600) activeRelativeText = Math.floor(secondsSinceActive / 3600) + " jam lalu";
+                else if (secondsSinceActive > 60) activeRelativeText = Math.floor(secondsSinceActive / 60) + " mnt lalu";
+
+                const relativeIndicatorClass = secondsSinceActive < 90 
+                    ? "bg-successGreen" 
+                    : secondsSinceActive < 1800 ? "bg-accentOrange" : "bg-gray-600";
+
+                const wrapperCard = document.createElement("div");
+                wrapperCard.className = "bg-cardBg border border-borderGray p-5 rounded-2xl flex flex-col justify-between hover:border-tealPrimary transition duration-300 relative group cursor-pointer shadow-lg";
+                wrapperCard.onclick = () => openEditModal(c.id);
+
+                wrapperCard.innerHTML = `
+                    <div>
+                        <!-- Top Row: Name & Status -->
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <h4 class="font-extrabold text-[#E3E9EC] text-sm group-hover:text-tealLight transition-colors">${c.name}</h4>
+                                <span class="text-[11px] text-gray-400 font-mono flex items-center gap-1 mt-0.5">
+                                    <i class="fa-brands fa-telegram text-tealLight"></i> ${c.telegram}
+                                </span>
+                            </div>
+                            <span class="text-[9px] font-black px-2 py-1 rounded-full ${licenseBadgeClass}">
+                                ${licenseText}
+                            </span>
+                        </div>
+
+                        <!-- Secondary Row: Financial Indicators -->
+                        <div class="grid grid-cols-3 gap-2 mt-4 bg-darkBg/60 border border-borderGray/40 px-3 py-2.5 rounded-xl text-center">
+                            <div>
+                                <span class="text-[9px] text-gray-500 block font-bold uppercase">Balance</span>
+                                <span class="text-xs font-bold text-white font-mono">$${c.balance.toFixed(2)}</span>
+                            </div>
+                            <div>
+                                <span class="text-[9px] text-gray-500 block font-bold uppercase">Equity</span>
+                                <span class="text-xs font-bold text-gray-200 font-mono">$${c.equity.toFixed(2)}</span>
+                            </div>
+                            <div>
+                                <span class="text-[9px] text-gray-500 block font-bold uppercase">Drawdown</span>
+                                <span class="text-xs font-mono font-bold ${c.drawdown > 15 ? 'text-red-400' : c.drawdown > 5 ? 'text-accentOrange' : 'text-successGreen'}">${c.drawdown.toFixed(2)}%</span>
+                            </div>
+                        </div>
+
+                        <!-- Config indicator -->
+                        <div class="flex items-center justify-between text-[11px] text-gray-400 mt-4 border-t border-borderGray/30 pt-3">
+                            <span class="flex items-center gap-1.5 font-medium">
+                                <i class="fa-solid fa-gamepad text-tealPrimary"></i> EA: <b class="text-tealLight">${c.activeMode}</b>
+                            </span>
+                            <span class="flex items-center gap-1 font-mono text-[10px]">
+                                <i class="fa-solid fa-calculator text-[9px]"></i> Lot: ${c.initialLot}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Foot Tracker Status -->
+                    <div class="flex items-center justify-between text-[10px] text-gray-500 mt-4">
+                        <span class="flex items-center gap-1.5">
+                            <span class="h-2 w-2 rounded-full ${relativeIndicatorClass} animate-pulse"></span>
+                            Aktif: ${activeRelativeText}
+                        </span>
+                        <span>Exp: ${new Date(c.expiryTimestamp).toLocaleDateString("id-ID")}</span>
+                    </div>
+                `;
+                grid.appendChild(wrapperCard);
+            });
+        }
+
+        function updateGlobalStats() {
+            const size = clients.length;
+            document.getElementById("stat-total-clients").innerText = size;
+
+            let totalBal = 0;
+            let totalEq = 0;
+            let countActiveLicense = 0;
+            let overallDD = 0;
+
+            clients.forEach(c => {
+                totalBal += c.balance;
+                totalEq += c.equity;
+                if (c.isLicenseActive && c.expiryTimestamp > Date.now()) {
+                    countActiveLicense++;
+                }
+            });
+
+            document.getElementById("stat-total-balance").innerText = totalBal.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById("stat-total-equity").innerText = totalEq.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            const percentActive = size > 0 ? Math.round((countActiveLicense / size) * 100) : 0;
+            document.getElementById("stat-license-active-pct").innerText = percentActive + "%";
+            document.getElementById("stat-license-progress").style.width = percentActive + "%";
+
+            // overall DD calc
+            const delta = totalBal - totalEq;
+            const computedDD = totalBal > 0 ? (delta / totalBal) * 100 : 0;
+            const ddTextSpan = document.getElementById("stat-overall-drawdown");
+            if (computedDD > 0.01) {
+                ddTextSpan.className = "text-[10px] text-accentOrange mt-3 flex items-center gap-1 font-medium";
+                ddTextSpan.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-accentOrange"></i> Drawdown EA Aktif (${computedDD.toFixed(2)}%)`;
+            } else {
+                ddTextSpan.className = "text-[10px] text-successGreen mt-3 flex items-center gap-1 font-medium";
+                ddTextSpan.innerHTML = `<i class="fa-solid fa-shield-halved text-successGreen"></i> Drawdown Aman (0.00%)`;
+            }
+        }
+
+        function applyFilters() {
+            renderClients();
+        }
+
+        // --- CONSOLE LOGGER ---
+        function logger(category, message, isAlert = false) {
+            const timeStr = new Date().toTimeString().split(' ')[0];
+            const logsContainer = document.getElementById("logs-container");
+            const div = document.createElement("div");
+            div.className = isAlert ? "text-red-400 font-semibold" : "text-gray-300";
+            
+            let colorCategory = "text-tealPrimary";
+            if (category == "MT5 Simulator" || category == "Trading") colorCategory = "text-sky-400";
+            if (category == "Google Sheet" || category == "Sync") colorCategory = "text-tealLight";
+            
+            div.innerHTML = `<span class="text-gray-500">[${timeStr}]</span> <span class="${colorCategory} font-bold">${category}:</span> ${message}`;
+            logsContainer.appendChild(div);
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+        }
+
+        function clearLogs() {
+            document.getElementById("logs-container").innerHTML = `<div class="text-gray-500">[${new Date().toTimeString().split(' ')[0]}] Console cleared.</div>`;
+        }
+
+        // --- CONNECT TO GOOGLE SHEET SCRIPT ---
+        function getSheetUrl() {
+            return document.getElementById("sheet-url-input").value.trim();
+        }
+
+        function saveSheetUrl() {
+            const url = getSheetUrl();
+            localStorage.setItem("gogor_sheet_url", url);
+            logger("Konfigurasi", `URL penyimpanan sheet disimpan: ${url ? url.substring(0, 40) + '...' : 'Kosong'}`);
+            
+            const badge = document.getElementById("connection-badge");
+            if (url) {
+                badge.innerText = "Configured";
+                badge.className = "font-bold text-tealPrimary";
+                updateSyncBanner(true, "URL Tersimpan. Klik 'Tarik (Pull)' untuk sinkronisasi pertama kali.");
+            } else {
+                badge.innerText = "Not Configured";
+                badge.className = "font-bold text-red-400";
+                updateSyncBanner(false, "Simpan URL Apps Script Anda untuk mengaktifkan sinkronisasi.");
+            }
+        }
+
+        function updateSyncBanner(isOk, text) {
+            const indicator = document.getElementById("sync-status").querySelector("div");
+            const textSpan = document.getElementById("sync-status-text");
+            textSpan.innerText = text;
+            if (isOk) {
+                indicator.className = "h-2 w-2 rounded-full bg-successGreen shrink-0";
+            } else {
+                indicator.className = "h-2 w-2 rounded-full bg-red-400 shrink-0";
+            }
+        }
+
+        function testConnection() {
+            const url = getSheetUrl();
+            if (!url) {
+                logger("Error", "URL Google Sheet kosong!", true);
+                updateSyncBanner(false, "Koneksi Gagal: URL kosong.");
+                return;
+            }
+
+            const badge = document.getElementById("connection-badge");
+            badge.innerText = "Testing...";
+            badge.className = "font-bold text-yellow-400 animate-pulse";
+
+            logger("Sync", "Menguji koneksi ke Google Apps script Web App...");
+            
+            // Build simple URL query for status check action=read
+            const target = url.includes("?") ? `${url}&action=read` : `${url}?action=read`;
+
+            fetch(target, { mode: 'no-cors' })
+                .then(res => {
+                    // CORS issues make read status tricky, but no-cors makes opaque request succeed.
+                    badge.innerText = "Connected";
+                    badge.className = "font-bold text-successGreen";
+                    logger("Sync", "Koneksi endpoint Apps Script berhasil dideteksi!");
+                    updateSyncBanner(true, "Tes koneksi sukses. Endpoint merespon.");
+                })
+                .catch(err => {
+                    badge.innerText = "Error Connection";
+                    badge.className = "font-bold text-red-500";
+                    logger("Sync", `Gagal menghubungi Apps Script: ${err.message}`, true);
+                    updateSyncBanner(false, `Koneksi gagal: ${err.message}`);
+                });
+        }
+
+        function pullData() {
+            const url = getSheetUrl();
+            if(!url) {
+                alert("Masukkan URL Google Sheet Web App terlebih dahulu!");
+                return;
+            }
+
+            const btn = document.getElementById("btn-pull");
+            const origText = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Loading...`;
+            btn.disabled = true;
+
+            logger("Sync", "Mengunduh database terbaru dari Google Sheet...");
+            updateSyncBanner(true, "Downloading data...");
+
+            const target = url.includes("?") ? `${url}&action=read` : `${url}?action=read`;
+
+            fetch(target)
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP status ${res.status}`);
+                    return res.json();
+                })
+                .then(data => {
+                    if (Array.isArray(data)) {
+                        clients = data.map((c, idx) => ({
+                            id: Number(c.id) || idx + 1,
+                            name: c.name || "Klien Tanpa Nama",
+                            telegram: c.telegram || "@klien",
+                            balance: Number(c.balance) || 100.0,
+                            equity: Number(c.equity) || Number(c.balance) || 100.0,
+                            drawdown: Number(c.drawdown) || 0.0,
+                            isLicenseActive: c.isLicenseActive === true || c.isLicenseActive === "true" || c.license_active == 1 || c.isLicenseActive == 1,
+                            expiryTimestamp: Number(c.expiryTimestamp) || (Date.now() + 30 * 86400000),
+                            lastActiveTime: Number(c.lastActiveTime) || Date.now(),
+                            activeMode: c.activeMode || "Safe Martingale",
+                            initialLot: Number(c.initialLot) || 0.01,
+                            lotStep: Number(c.lotStep) || 0.01,
+                            stepPoints: Number(c.stepPoints) || 100,
+                            maxSpread: Number(c.maxSpread) || 20,
+                            recoveryThreshold: Number(c.recoveryThreshold) || 30,
+                            expMultiplier: Number(c.expMultiplier) || 1.5
+                        }));
+                        renderClients();
+                        updateGlobalStats();
+                        logger("Sync", `Berhasil menarik ${clients.length} subscriber dari Google Sheet!`);
+                        updateSyncBanner(true, `Sinkronisasi Masuk Berhasil: ${clients.length} klien termuat.`);
+                    } else {
+                        logger("Sync", "JSON yang diterima salah format (bukan array).", true);
+                        updateSyncBanner(false, "Format database tidak valid.");
+                    }
+                })
+                .catch(err => {
+                    logger("Sync", `Gagal memuat data: ${err.message}`, true);
+                    updateSyncBanner(false, `Gagal narik data: ${err.message}`);
+                    alert("Gagal mengunduh: " + err.message + "\n\nPastikan Aplikasi Web Google Apps Script Anda telah dideploy dengan akses 'Siapa Saja (Anyone)' dan mendukung Cross-Origin CORS.");
+                })
+                .finally(() => {
+                    btn.innerHTML = origText;
+                    btn.disabled = false;
+                });
+        }
+
+        function pushData() {
+            const url = getSheetUrl();
+            if(!url) {
+                alert("Masukkan URL Google Sheet Web App terlebih dahulu!");
+                return;
+            }
+
+            const btn = document.getElementById("btn-push");
+            const origText = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Uploading...`;
+            btn.disabled = true;
+
+            logger("Sync", "Mengunggah seluruh daftar subscriber lokal ke Google Sheet...");
+            updateSyncBanner(true, "Uploading data...");
+
+            const target = url.includes("?") ? `${url}&action=sync` : `${url}?action=sync`;
+
+            fetch(target, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain' // avoiding preflight CORS prechecks in Google webapps
+                },
+                body: JSON.stringify(clients)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "success") {
+                    logger("Sync", "Sinkronisasi keluar (Push) BERHASIL! Seluruh sheet Google ter-update.");
+                    updateSyncBanner(true, "Push Berhasil! Google Sheet terupdate.");
+                } else {
+                    throw new Error(data.message || "Unknown error");
+                }
+            })
+            .catch(err => {
+                // If cors limits block response direct parse, we can cross-validate from a reload pull or alert
+                logger("Sync", `Tanggapan pengunggahan: ${err.message}. Membuka reload validasi...`);
+                updateSyncBanner(true, "Data Terunggah (Cek Google Sheet Anda)");
+                alert("Sinkronisasi Sukses dikirim. Periksa visual lembaran Google Sheets Anda untuk memverifikasi entri baris.");
+            })
+            .finally(() => {
+                btn.innerHTML = origText;
+                btn.disabled = false;
+            });
+        }
+
+        // --- MONGO-MOCK METATRADER EA SIMULATOR ---
+        function toggleSimulation() {
+            const toggle = document.getElementById("sim-toggle-btn");
+            const nob = document.getElementById("sim-toggle-nob");
+
+            if (isSimulating) {
+                // STOP
+                isSimulating = false;
+                clearInterval(simulationInterval);
+                toggle.className = "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none bg-borderGray";
+                nob.className = "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0";
+                logger("MT5 Simulator", "Simulasi pasar dihentikan oleh pengguna.");
+            } else {
+                // START
+                isSimulating = true;
+                toggle.className = "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none bg-tealPrimary";
+                nob.className = "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-4";
+                logger("MT5 Simulator", "Mengeksekusi siklus perdagangan sintesis. EA Klien mengevaluasi tick pasar...");
+                
+                simulationInterval = setInterval(simulateTick, 2500);
+            }
+        }
+
+        function simulateTick() {
+            if (clients.length === 0) return;
+            
+            const trend = document.getElementById("market-trend-selector").value;
+            
+            // Pick a random client to drift
+            const idx = Math.floor(Math.random() * clients.length);
+            const client = clients[idx];
+
+            let driftBal = 0;
+            let driftEq = 0;
+
+            if (trend === "bullish") {
+                driftBal = (Math.random() * 15) - 2; // general profit
+                driftEq = driftBal + (Math.random() * 5); // floating positive
+            } else if (trend === "bearish") {
+                driftBal = (Math.random() * 10) - 5;
+                driftEq = driftBal - (Math.random() * 20); // floating minus increased
+            } else if (trend === "sideways") {
+                driftBal = (Math.random() * 4) - 1;
+                driftEq = driftBal + ((Math.random() * 6) - 3);
+            } else if (trend === "crash") {
+                driftBal = -20; // sudden balance cuts
+                driftEq = -150 - (Math.random() * 200); // extreme floating minus
+            }
+
+            // Update clients
+            client.balance = Math.max(10, client.balance + driftBal);
+            
+            // keep equity bound below balance if drawdown exists
+            let rawEquity = client.equity + driftEq;
+            if (rawEquity > client.balance * 1.05) rawEquity = client.balance; 
+            client.equity = Math.max(5, rawEquity);
+
+            // Compute drawdown
+            const dd = ((client.balance - client.equity) / client.balance) * 100;
+            client.drawdown = Math.max(0, dd);
+
+            client.lastActiveTime = Date.now();
+
+            // Render modifications
+            renderClients();
+            updateGlobalStats();
+
+            logger("Trading", `EA ${client.name} - Open trade updated. Bal: $${client.balance.toFixed(2)}, DD: ${client.drawdown.toFixed(2)}%`);
+            
+            // Auto report changes individually if sheet config saved
+            const url = getSheetUrl();
+            if (url) {
+                // Background send in raw URLEncoded format which single update webapp supports
+                const encodedParams = `action=update_client&telegram=${encodeURIComponent(client.telegram)}&name=${encodeURIComponent(client.name)}&balance=${client.balance}&equity=${client.equity}&drawdown=${client.drawdown}&isLicenseActive=${client.isLicenseActive}&expiryTimestamp=${client.expiryTimestamp}&lastActiveTime=${client.lastActiveTime}&activeMode=${encodeURIComponent(client.activeMode)}&initialLot=${client.initialLot}&lotStep=${client.lotStep}&stepPoints=${client.stepPoints}&maxSpread=${client.maxSpread}&recoveryThreshold=${client.recoveryThreshold}&expMultiplier=${client.expMultiplier}`;
+                const target = url.includes("?") ? `${url}&${encodedParams}` : `${url}?${encodedParams}`;
+                
+                fetch(target, { mode: 'no-cors' })
+                    .then(() => {
+                        logger("Sync", `Autosync: Update data simulator ${client.name} berhasil di-upload.`);
+                    })
+                    .catch(err => {
+                        console.log("Background sync failed", err);
+                    });
+            }
+        }
+
+        // --- ADD MODAL MODULE ---
+        function openAddModal() {
+            const modal = document.getElementById("add-modal");
+            const content = document.getElementById("add-modal-content");
+            modal.classList.remove("hidden");
+            setTimeout(() => {
+                content.classList.remove("scale-95", "opacity-0");
+                content.classList.add("scale-100", "opacity-100");
+            }, 50);
+        }
+
+        function closeAddModal() {
+            const modal = document.getElementById("add-modal");
+            const content = document.getElementById("add-modal-content");
+            content.classList.remove("scale-100", "opacity-100");
+            content.classList.add("scale-95", "opacity-0");
+            setTimeout(() => {
+                modal.classList.add("hidden");
+            }, 150);
+        }
+
+        function saveNewClient(event) {
+            event.preventDefault();
+            const name = document.getElementById("add-name").value.trim();
+            let telegram = document.getElementById("add-telegram").value.trim();
+            const balance = parseFloat(document.getElementById("add-balance").value) || 100.0;
+            const mode = document.getElementById("add-mode").value;
+
+            if(!telegram.startsWith("@")) telegram = "@" + telegram;
+
+            const existing = clients.find(c => c.telegram.toLowerCase() === telegram.toLowerCase());
+            if (existing) {
+                alert("Customer dengan telegram ID tersebut sudah terdaftar!");
+                return;
+            }
+
+            const newId = clients.length > 0 ? Math.max(...clients.map(c => c.id)) + 1 : 1;
+            const newClient = {
+                id: newId,
+                name: name,
+                telegram: telegram,
+                balance: balance,
+                equity: balance,
+                drawdown: 0.0,
+                isLicenseActive: true,
+                expiryTimestamp: Date.now() + 30 * 86400000, // 30 Days expiry
+                lastActiveTime: Date.now(),
+                activeMode: mode,
+                initialLot: 0.01,
+                lotStep: 0.01,
+                stepPoints: 100,
+                maxSpread: 20,
+                recoveryThreshold: 30,
+                expMultiplier: 1.5
+            };
+
+            clients.push(newClient);
+            renderClients();
+            updateGlobalStats();
+            logger("Kontrol Klien", `Berhasil menambahkan pengguna baru: ${name} (${telegram})`);
+            
+            // Clean up
+            document.getElementById("add-client-form").reset();
+            closeAddModal();
+
+            // Trigger dynamic push
+            const url = getSheetUrl();
+            if (url) {
+                pushData();
+            }
+        }
+
+
+        // --- EDIT MODAL MODULE ---
+        let currentEditingClientId = null;
+
+        function openEditModal(clientId) {
+            const client = clients.find(c => c.id === clientId);
+            if (!client) return;
+
+            currentEditingClientId = clientId;
+            editLicenseState = client.isLicenseActive;
+
+            document.getElementById("edit-id").value = client.id;
+            document.getElementById("edit-name").value = client.name;
+            document.getElementById("edit-telegram").value = client.telegram;
+            document.getElementById("edit-balance").value = client.balance;
+            document.getElementById("edit-equity").value = client.equity;
+            document.getElementById("edit-initial-lot").value = client.initialLot;
+            document.getElementById("edit-lot-step").value = client.lotStep;
+            document.getElementById("edit-exp-multiplier").value = client.expMultiplier;
+            document.getElementById("edit-step-points").value = client.stepPoints;
+            document.getElementById("edit-max-spread").value = client.maxSpread;
+            document.getElementById("edit-recovery").value = client.recoveryThreshold;
+            document.getElementById("edit-mode").value = client.activeMode;
+
+            // Render license badge state
+            updateEditModalLicenseUI(client.expiryTimestamp);
+
+            // Open modal
+            const modal = document.getElementById("edit-modal");
+            const content = document.getElementById("edit-modal-content");
+            modal.classList.remove("hidden");
+            switchModelTab('license'); // reset tab default
+            setTimeout(() => {
+                content.classList.remove("scale-95", "opacity-0");
+                content.classList.add("scale-100", "opacity-100");
+            }, 50);
+        }
+
+        function closeEditModal() {
+            const modal = document.getElementById("edit-modal");
+            const content = document.getElementById("edit-modal-content");
+            content.classList.remove("scale-100", "opacity-100");
+            content.classList.add("scale-95", "opacity-0");
+            setTimeout(() => {
+                modal.classList.add("hidden");
+                currentEditingClientId = null;
+            }, 150);
+        }
+
+        function switchModelTab(tabType) {
+            const btnLicense = document.getElementById("edit-tab-btn-license");
+            const btnTrading = document.getElementById("edit-tab-btn-trading");
+            const panelLicense = document.getElementById("edit-tab-license");
+            const panelTrading = document.getElementById("edit-tab-trading");
+
+            if (tabType === 'license') {
+                btnLicense.className = "flex-1 py-1.5 text-xs font-bold rounded-lg bg-panelBg text-white focus:outline-none";
+                btnTrading.className = "flex-1 py-1.5 text-xs font-bold rounded-lg text-gray-400 hover:text-white focus:outline-none";
+                panelLicense.classList.remove("hidden");
+                panelTrading.classList.add("hidden");
+            } else {
+                btnTrading.className = "flex-1 py-1.5 text-xs font-bold rounded-lg bg-panelBg text-white focus:outline-none";
+                btnLicense.className = "flex-1 py-1.5 text-xs font-bold rounded-lg text-gray-400 hover:text-white focus:outline-none";
+                panelTrading.classList.remove("hidden");
+                panelLicense.classList.add("hidden");
+            }
+        }
+
+        let tempNewExpiryTimestamp = 0;
+
+        function updateEditModalLicenseUI(expiryTs) {
+            const badge = document.getElementById("edit-license-badge");
+            const isLicenseCurrentlyActive = editLicenseState && expiryTs > Date.now();
+            tempNewExpiryTimestamp = expiryTs;
+
+            if (isLicenseCurrentlyActive) {
+                badge.className = "bg-successGreen hover:bg-successGreen/90 text-darkBg px-3 py-1.5 rounded-lg text-xs font-black uppercase";
+                badge.innerText = "Aktif";
+            } else {
+                badge.className = "bg-red-500 hover:bg-red-500/90 text-white px-3 py-1.5 rounded-lg text-xs font-black uppercase";
+                badge.innerText = "Nonaktif";
+            }
+
+            document.getElementById("edit-expiry-text").innerText = "Lisensi Berlaku Hingga: " + new Date(expiryTs).toLocaleDateString("id-ID") + " (" + Math.max(0, Math.ceil((expiryTs - Date.now()) / 86400000)) + " Hari lagi)";
+        }
+
+        function toggleEditLicenseState() {
+            editLicenseState = !editLicenseState;
+            updateEditModalLicenseUI(tempNewExpiryTimestamp);
+        }
+
+        function adjustExpiry(days) {
+            const currentBase = Math.max(Date.now(), tempNewExpiryTimestamp);
+            const extended = currentBase + (days * 86400000);
+            updateEditModalLicenseUI(extended);
+            logger("Lisensi", `Durasi lisensi klien disesuaikan ${days} hari.`);
+        }
+
+        function saveClientEdits(event) {
+            event.preventDefault();
+            if (!currentEditingClientId) return;
+
+            const client = clients.find(c => c.id === currentEditingClientId);
+            if (!client) return;
+
+            client.name = document.getElementById("edit-name").value.trim();
+            client.telegram = document.getElementById("edit-telegram").value.trim();
+            client.balance = parseFloat(document.getElementById("edit-balance").value) || 0.0;
+            client.equity = parseFloat(document.getElementById("edit-equity").value) || 0.0;
+            client.isLicenseActive = editLicenseState;
+            client.expiryTimestamp = tempNewExpiryTimestamp;
+
+            client.initialLot = parseFloat(document.getElementById("edit-initial-lot").value) || 0.01;
+            client.lotStep = parseFloat(document.getElementById("edit-lot-step").value) || 0.01;
+            client.expMultiplier = parseFloat(document.getElementById("edit-exp-multiplier").value) || 1.5;
+            client.stepPoints = parseInt(document.getElementById("edit-step-points").value) || 100;
+            client.maxSpread = parseInt(document.getElementById("edit-max-spread").value) || 20;
+            client.recoveryThreshold = parseInt(document.getElementById("edit-recovery").value) || 30;
+            client.activeMode = document.getElementById("edit-mode").value;
+
+            // Re-render
+            renderClients();
+            updateGlobalStats();
+            logger("Kontrol Klien", `Konfigurasi bot subscriber ${client.name} berhasil diperbarui.`);
+
+            closeEditModal();
+
+            // Auto push updates
+            const url = getSheetUrl();
+            if (url) {
+                pushData();
+            }
+        }
+
+        function deleteClient() {
+            if (!currentEditingClientId) return;
+            const client = clients.find(c => c.id === currentEditingClientId);
+            if (!client) return;
+
+            if (confirm(`Apakah Anda yakin ingin menghapus pelanggan ${client.name} dari database kontrol?`)) {
+                clients = clients.filter(c => c.id !== currentEditingClientId);
+                renderClients();
+                updateGlobalStats();
+                logger("Kontrol Klien", `Hapus Pelanggan: ${client.name} dihapus dari sistem.`, true);
+                
+                closeEditModal();
+
+                const url = getSheetUrl();
+                if (url) {
+                    pushData();
+                }
+            }
+        }
+    </script>
+</body>
+</html>

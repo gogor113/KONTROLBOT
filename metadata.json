@@ -1,0 +1,6 @@
+{
+  "name": "GOGOR Bot Manager",
+  "description": "Android application to securely manage, license, configure, and monitor subscribers for the GOGOR MT5 trading bot. Features Gemini AI performance optimizations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

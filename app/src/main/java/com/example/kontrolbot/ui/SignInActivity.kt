@@ -1,10 +1,12 @@
 package com.example.kontrolbot.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.example.kontrolbot.R
+import com.example.kontrolbot.auth.AuthManager
 import com.example.kontrolbot.databinding.ActivitySignInBinding
 import com.example.kontrolbot.network.RetrofitClient
 import com.example.kontrolbot.network.TokenRequest
@@ -33,6 +35,12 @@ class SignInActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySignInBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // If already logged in (session saved), go to main
+        if (AuthManager.isLoggedIn(this)) {
+            startMainAndFinish()
+            return
+        }
 
         val serverClientId = getString(R.string.server_client_id)
         val backendUrl = getString(R.string.backend_base_url)
@@ -74,9 +82,12 @@ class SignInActivity : AppCompatActivity() {
                 val response = safeVerifyToken(idToken)
                 withContext(Dispatchers.Main) {
                     if (response?.ok == true) {
+                        // simpan session lokal
+                        AuthManager.saveSession(this@SignInActivity, response.email, idToken)
+
                         binding.tvStatus.text = "Signed in: ${response.email}"
                         Toast.makeText(this@SignInActivity, "Login berhasil: ${response.email}", Toast.LENGTH_SHORT).show()
-                        // TODO: lanjut ke main activity / simpan session
+                        startMainAndFinish()
                     } else {
                         binding.tvStatus.text = "Sign-in failed"
                         Toast.makeText(this@SignInActivity, "Verifikasi server gagal: ${response?.message ?: "network"}", Toast.LENGTH_LONG).show()
@@ -94,6 +105,17 @@ class SignInActivity : AppCompatActivity() {
             if (resp.isSuccessful) resp.body() else TokenResponse(false, null, "HTTP ${resp.code()}")
         } catch (t: Throwable) {
             TokenResponse(false, null, t.message)
+        }
+    }
+
+    private fun startMainAndFinish() {
+        try {
+            val intent = Intent(this, MainActivity::class.java)
+            startActivity(intent)
+            finish()
+        } catch (t: Throwable) {
+            // If MainActivity doesn't exist, just finish
+            finish()
         }
     }
 }

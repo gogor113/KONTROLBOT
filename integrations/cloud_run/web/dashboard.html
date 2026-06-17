@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GIRD Monitor Dashboard</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">GIRD Monitor</div>
+    <div class="controls">
+      <input id="apiUrl" placeholder="API URL (e.g. https://your-cloudrun/v1)" />
+      <input id="apiKey" placeholder="x-api-key" />
+      <button id="btnConnect" class="btn primary">Connect</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="overview card">
+      <div class="row">
+        <div>
+          <h3>Instances</h3>
+          <div class="big" id="instancesCount">—</div>
+          <div class="muted">Active / Total</div>
+        </div>
+        <div>
+          <h3>Net P/L (last snapshot)</h3>
+          <div class="big" id="netPL">—</div>
+          <div class="muted">USD</div>
+        </div>
+        <div>
+          <h3>Last Update</h3>
+          <div class="big" id="lastUpdate">—</div>
+          <div class="muted">iso time</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card grid two-cols">
+      <div>
+        <div class="card-title">Instances</div>
+        <div class="toolbar">
+          <button id="btnRefresh" class="btn">Refresh</button>
+          <button id="btnReindex" class="btn outline">Reindex Sheet</button>
+          <label class="switch"><input id="autoPoll" type="checkbox" checked><span>Auto</span></label>
+          <select id="filterStatus">
+            <option value="all">All</option>
+            <option value="online">Online</option>
+            <option value="offline">Offline</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table id="instancesTable">
+            <thead>
+              <tr><th>Account</th><th>Status</th><th>Last Seen</th><th>Symbol</th><th>Balance</th><th>Equity</th><th>Positions</th><th>Actions</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <div class="card-title">Performance</div>
+        <canvas id="chartPL" height="220"></canvas>
+
+        <div class="card-title">Details</div>
+        <pre id="detailPane" class="detail">Select an instance to view payload</pre>
+      </div>
+    </section>
+
+    <footer class="foot">Built for GIRD · Syncs with Cloud Run backend · <span id="serviceUrlFooter">not connected</span></footer>
+  </main>
+
+<script>
+// Simple dashboard logic
+let API_URL = '';
+let API_KEY = '';
+let pollInterval = 5000;
+let pollTimer = null;
+let lastSnapshot = null;
+
+const el = id => document.getElementById(id);
+const tbody = document.querySelector('#instancesTable tbody');
+const instancesCount = el('instancesCount');
+const netPL = el('netPL');
+const lastUpdate = el('lastUpdate');
+const detailPane = el('detailPane');
+const serviceUrlFooter = el('serviceUrlFooter');
+
+const chartCtx = document.getElementById('chartPL').getContext('2d');
+const plChart = new Chart(chartCtx, {
+  type: 'line',
+  data: { labels: [], datasets: [{ label: 'Net P/L', data: [], borderColor: '#4aa96c', backgroundColor: 'rgba(74,169,108,0.15)', tension: 0.3 }] },
+  options: { responsive: true, maintainAspectRatio: false }
+});
+
+function setConnected(url, key){ API_URL = url.replace(/\/$/, ''); API_KEY = key; serviceUrlFooter.textContent = API_URL || 'not connected'; }
+
+async function fetchInstances(){
+  if(!API_URL) return;
+  try{
+    const res = await fetch(API_URL + '/instances?activeOnly=false', { headers: { 'x-api-key': API_KEY } });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const j = await res.json();
+    if(!j.ok) throw new Error(j.error||'no ok');
+    renderInstances(j.instances || []);
+  }catch(err){ console.error(err); }
+}
+
+function renderInstances(list){
+  lastSnapshot = list;
+  tbody.innerHTML = '';
+  let active = 0;
+  let net = 0;
+  const labels = [];
+  const data = [];
+
+  const filter = document.getElementById('filterStatus').value;
+
+  list.forEach(it => {
+    if(it.status === 'online') active++;
+    // attempt to extract profit from payload if present
+    let profit = 0;
+    try{ if(it.payload && typeof it.payload === 'object'){ profit = parseFloat(it.payload.profit || it.payload.total_pl || 0) || 0; } }catch(e){}
+    net += profit;
+    labels.push(new Date(it.lastSeen).toLocaleTimeString());
+    data.push(net);
+
+    if(filter !== 'all' && it.status !== filter) return;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(it.account || '')}</td>
+      <td><span class="badge ${it.status==='online' ? 'green' : 'gray'}">${it.status}</span></td>
+      <td>${escapeHtml(it.lastSeen || '')}</td>
+      <td>${escapeHtml(it.payload && it.payload.symbol || '')}</td>
+      <td>${formatNumber(it.payload && it.payload.balance)}</td>
+      <td>${formatNumber(it.payload && it.payload.equity)}</td>
+      <td>${escapeHtml(String(it.payload && it.payload.positions_count || '0'))}</td>
+      <td><button class="btn small" data-account="${escapeHtml(it.account||'')}">View</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  instancesCount.textContent = active + ' / ' + (list.length);
+  netPL.textContent = net.toFixed(2);
+  lastUpdate.textContent = new Date().toLocaleString();
+
+  // chart update
+  plChart.data.labels = labels.slice(-30);
+  plChart.data.datasets[0].data = data.slice(-30);
+  plChart.update();
+
+  // Attach view buttons
+  document.querySelectorAll('#instancesTable button[data-account]').forEach(btn => {
+    btn.onclick = () => {
+      const a = btn.getAttribute('data-account');
+      const found = list.find(x=>x.account===a);
+      detailPane.textContent = JSON.stringify(found, null, 2);
+    };
+  });
+}
+
+function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
+function formatNumber(v){ if(v===undefined||v===null||v==='') return '—'; const n = parseFloat(v); if(isNaN(n)) return String(v); return n.toFixed(2); }
+
+// controls
+el('btnConnect').addEventListener('click', ()=>{
+  const url = el('apiUrl').value.trim(); const key = el('apiKey').value.trim(); if(!url||!key){ alert('Isi API URL & API key'); return; } setConnected(url, key); fetchInstances();
+});
+el('btnRefresh').addEventListener('click', ()=>fetchInstances());
+el('btnReindex').addEventListener('click', async ()=>{
+  if(!API_URL){ alert('Connect first'); return; }
+  if(!confirm('Reindex sheet from server cache?')) return;
+  try{
+    const res = await fetch(API_URL + '/reindex', { method:'POST', headers: { 'x-api-key': API_KEY } });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const j = await res.json(); alert('Reindex: ' + JSON.stringify(j));
+  }catch(err){ alert('Reindex failed: ' + err.message); }
+});
+
+el('autoPoll').addEventListener('change', (e)=>{
+  if(e.target.checked) startPoll(); else stopPoll();
+});
+
+document.getElementById('filterStatus').addEventListener('change', ()=>{ if(lastSnapshot) renderInstances(lastSnapshot); });
+
+function startPoll(){ if(pollTimer) return; pollTimer = setInterval(()=>fetchInstances(), pollInterval); }
+function stopPoll(){ if(pollTimer) clearInterval(pollTimer); pollTimer = null; }
+
+// auto-start if apiUrl present as query param
+(function init(){
+  const params = new URLSearchParams(location.search);
+  const u = params.get('api'); const k = params.get('key');
+  if(u) el('apiUrl').value = u;
+  if(k) el('apiKey').value = k;
+  if(u && k){ setConnected(u, k); fetchInstances(); startPoll(); }
+})();
+
+</script>
+</body>
+</html>

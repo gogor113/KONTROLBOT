@@ -1913,6 +1913,11 @@ fun SubscriberManager(
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf(0) } // 0: Semua, 1: Aktif, 2: Hampir Habis, 3: Kadaluwarsa
     
+    // Bulk action states
+    var selectedClientIds by remember { mutableStateOf(emptySet<Int>()) }
+    var showBulkRenewDialog by remember { mutableStateOf(false) }
+    var showBulkModeDialog by remember { mutableStateOf(false) }
+    
     // Calculate stats
     val totalSubs = clients.size
     val activeSubs = clients.count { 
@@ -2026,14 +2031,109 @@ fun SubscriberManager(
             matchQuery && matchFilter
         }
 
-        Text(
-            text = "DAFTAR SUBSCRIBER AKTIF GOGOR MT5 (${filteredClients.size})",
-            fontWeight = FontWeight.Bold,
-            fontSize = 11.sp,
-            color = TextMuted,
-            letterSpacing = 1.sp,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+        // Title and Select All Panel row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "DAFTAR SUBSCRIBER AKTIF GOGOR MT5 (${filteredClients.size})",
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                color = TextMuted,
+                letterSpacing = 1.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            
+            val isAllSelected = filteredClients.isNotEmpty() && filteredClients.all { it.id in selectedClientIds }
+            
+            TextButton(
+                onClick = {
+                    if (isAllSelected) {
+                        selectedClientIds = selectedClientIds - filteredClients.map { it.id }.toSet()
+                    } else {
+                        selectedClientIds = selectedClientIds + filteredClients.map { it.id }.toSet()
+                    }
+                },
+                contentPadding = PaddingValues(0.dp),
+                modifier = Modifier.height(24.dp).testTag("select_all_toggle_button")
+            ) {
+                Text(
+                    text = if (isAllSelected) "Batal Pilih Semua" else "Pilih Semua",
+                    color = TealLight,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.5.sp
+                )
+            }
+        }
+
+        // Bulk Actions floating control panel
+        if (selectedClientIds.isNotEmpty()) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+                    .testTag("bulk_actions_panel"),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = TealPrimary.copy(alpha = 0.12f)),
+                border = BorderStroke(1.5.dp, TealPrimary)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "${selectedClientIds.size} Klien Terpilih",
+                            color = TealLight,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                        Text(
+                            text = "Aksi masal untuk seluruh klien terpilih.",
+                            color = TextMuted,
+                            fontSize = 10.sp
+                        )
+                    }
+                    
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Bulk Change Mode Button
+                        OutlinedButton(
+                            onClick = { showBulkModeDialog = true },
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, TealLight.copy(alpha = 0.6f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TealLight),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                            modifier = Modifier.height(28.dp).testTag("bulk_change_mode_button")
+                        ) {
+                            Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(11.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Ubah Mode", fontSize = 9.5.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        // Bulk Renew License Button
+                        Button(
+                            onClick = { showBulkRenewDialog = true },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = TealPrimary),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                            modifier = Modifier.height(28.dp).testTag("bulk_renew_license_button")
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(11.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Tambah Lisensi", fontSize = 9.5.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
 
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             if (filteredClients.isEmpty()) {
@@ -2055,6 +2155,14 @@ fun SubscriberManager(
                     items(filteredClients, key = { it.id }) { client ->
                         SubscriberCard(
                             client = client,
+                            isSelected = client.id in selectedClientIds,
+                            onCheckedChange = { isChecked ->
+                                selectedClientIds = if (isChecked) {
+                                    selectedClientIds + client.id
+                                } else {
+                                    selectedClientIds - client.id
+                                }
+                            },
                             onRenewLicense = { onRenewLicense(client) },
                             onTriggerAi = { onTriggerAi(client) },
                             onEditConfig = { onEditConfig(client) }
@@ -2063,6 +2171,33 @@ fun SubscriberManager(
                 }
             }
         }
+    }
+
+    // Bulk Dialog Overlay Rendering
+    if (showBulkRenewDialog) {
+        val selectedClients = clients.filter { it.id in selectedClientIds }
+        BulkLicenseRenewalDialog(
+            selectedCount = selectedClientIds.size,
+            onDismiss = { showBulkRenewDialog = false },
+            onRenew = { days ->
+                viewModel.bulkRenewLicenses(selectedClients, days)
+                showBulkRenewDialog = false
+                selectedClientIds = emptySet()
+            }
+        )
+    }
+
+    if (showBulkModeDialog) {
+        val selectedClients = clients.filter { it.id in selectedClientIds }
+        BulkModeSelectionDialog(
+            selectedCount = selectedClientIds.size,
+            onDismiss = { showBulkModeDialog = false },
+            onApply = { newMode ->
+                viewModel.bulkUpdateModes(selectedClients, newMode)
+                showBulkModeDialog = false
+                selectedClientIds = emptySet()
+            }
+        )
     }
 }
 
@@ -2095,6 +2230,8 @@ fun MiniStatCard(
 @Composable
 fun SubscriberCard(
     client: BotClient,
+    isSelected: Boolean = false,
+    onCheckedChange: ((Boolean) -> Unit)? = null,
     onRenewLicense: () -> Unit,
     onTriggerAi: () -> Unit,
     onEditConfig: () -> Unit
@@ -2137,34 +2274,53 @@ fun SubscriberCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        text = client.name,
-                        color = TextLight,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = client.telegram,
-                            color = TextMuted,
-                            fontSize = 11.sp
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Box(
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (onCheckedChange != null) {
+                        Checkbox(
+                            checked = isSelected,
+                            onCheckedChange = onCheckedChange,
                             modifier = Modifier
-                                .size(3.dp)
-                                .clip(CircleShape)
-                                .background(TextMuted)
+                                .padding(end = 8.dp)
+                                .testTag("client_checkbox_${client.id}"),
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = TealPrimary,
+                                uncheckedColor = BorderGray,
+                                checkmarkColor = TextLight
+                            )
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                    Column {
                         Text(
-                            text = "MT5 ID: ${108000 + client.id * 17}",
-                            color = TealLight,
+                            text = client.name,
+                            color = TextLight,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace
+                            fontSize = 15.sp
                         )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = client.telegram,
+                                color = TextMuted,
+                                fontSize = 11.sp
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(3.dp)
+                                    .clip(CircleShape)
+                                    .background(TextMuted)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "MT5 ID: ${108000 + client.id * 17}",
+                                color = TealLight,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
                     }
                 }
                 
@@ -2297,6 +2453,106 @@ fun SubscriberCard(
             }
         }
     }
+}
+
+@Composable
+fun BulkLicenseRenewalDialog(
+    selectedCount: Int,
+    onDismiss: () -> Unit,
+    onRenew: (Int) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Perpanjangan Lisensi Masal", color = TextLight, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Pilih masa penambahan lisensi premium untuk $selectedCount klien terpilih sekaligus:", color = TextMuted, fontSize = 13.sp)
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    Button(
+                        onClick = { onRenew(30) },
+                        colors = ButtonDefaults.buttonColors(containerColor = TealPrimary)
+                    ) {
+                        Text("+30 Hari")
+                    }
+                    Button(
+                        onClick = { onRenew(90) },
+                        colors = ButtonDefaults.buttonColors(containerColor = TealPrimary)
+                    ) {
+                        Text("+90 Hari")
+                    }
+                    Button(
+                        onClick = { onRenew(365) },
+                        colors = ButtonDefaults.buttonColors(containerColor = GoldDark)
+                    ) {
+                        Text("+1 Tahun")
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss, colors = ButtonDefaults.textButtonColors(contentColor = TextMuted)) {
+                Text("Tutup", fontSize = 12.sp)
+            }
+        },
+        containerColor = CardDarkBg
+    )
+}
+
+@Composable
+fun BulkModeSelectionDialog(
+    selectedCount: Int,
+    onDismiss: () -> Unit,
+    onApply: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Ubah Mode Trading Masal", color = TextLight, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("Pilih mode trading baru untuk $selectedCount klien terpilih secara bersamaan:", color = TextMuted, fontSize = 13.sp)
+                
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    Button(
+                        onClick = { onApply("MODE_BOTH") },
+                        colors = ButtonDefaults.buttonColors(containerColor = TealPrimary),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("BOTH (Beli dan Jual)")
+                    }
+                    Button(
+                        onClick = { onApply("MODE_BUY_ONLY") },
+                        colors = ButtonDefaults.buttonColors(containerColor = TealLight),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("BUY ONLY (Bypass Filter Beli)")
+                    }
+                    Button(
+                        onClick = { onApply("MODE_SELL_ONLY") },
+                        colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("SELL ONLY (Bypass Filter Jual)")
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss, colors = ButtonDefaults.textButtonColors(contentColor = TextMuted)) {
+                Text("Tutup", fontSize = 12.sp)
+            }
+        },
+        containerColor = CardDarkBg
+    )
 }
 
 @Composable

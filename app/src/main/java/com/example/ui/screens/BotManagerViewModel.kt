@@ -217,6 +217,35 @@ class BotManagerViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    fun bulkRenewLicenses(clientsToRenew: List<BotClient>, days: Int) {
+        viewModelScope.launch {
+            clientsToRenew.forEach { client ->
+                val updated = client.copy(
+                    expiryTimestamp = System.currentTimeMillis() + (days.toLong() * 24 * 60 * 60 * 1000),
+                    isLicenseActive = true
+                )
+                repository.updateClient(updated)
+                addLog(client.name, "Lisensi diperpanjang secara masal sebanyak $days hari.")
+            }
+            triggerAutoSheetSync()
+            addLog("System", "Berhasil memperpanjang lisensi ${clientsToRenew.size} subscriber sekaligus.")
+        }
+    }
+
+    fun bulkUpdateModes(clientsToUpdate: List<BotClient>, newMode: String) {
+        viewModelScope.launch {
+            clientsToUpdate.forEach { client ->
+                val updated = client.copy(
+                    activeMode = newMode
+                )
+                repository.updateClient(updated)
+                addLog(client.name, "Mode trading diperbarui secara masal menjadi ${newMode.replace("MODE_", "")}.")
+            }
+            triggerAutoSheetSync()
+            addLog("System", "Berhasil mengubah mode trading ${clientsToUpdate.size} subscriber secara masal.")
+        }
+    }
+
     fun getGeminiOptimizations(marketTrend: String, riskStyle: String, currentClient: BotClient) {
         viewModelScope.launch {
             _geminiState.value = GeminiUiState.Loading

@@ -1,6 +1,5 @@
 // GIRD Monitor server with Auth, SSE, Google Sheets integration
-// Adds: /auth endpoints (register/login/refresh/logout/me/forgot), GitHub OAuth, nodemailer email send
-// Note: This server stores users in Google Sheets (Users sheet). For production, prefer real DB.
+// Adds Reset Tokens persistence and /auth/reset endpoint
 
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -40,6 +39,7 @@ const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
 const MONITOR_SHEET_NAME = 'Monitor';
 const EVENTS_SHEET_NAME = 'Events';
 const USERS_SHEET_NAME = 'Users';
+const RESETS_SHEET_NAME = 'ResetTokens';
 
 if (!SHEET_ID) { console.error('Missing SHEET_ID env var. Exit.'); process.exit(1); }
 if (!API_KEY) { console.warn('Warning: API_KEY env var is empty. Requests will be rejected until API_KEY is configured.'); }
@@ -66,13 +66,24 @@ async function appendEventRow(payload){ const sheets = await getSheets(); const 
   const row = [ nowIso(), payload.account_login || payload.account || '', payload.event || '', payload.symbol || '', JSON.stringify(payload.extra || payload) ];
   const sheets = await getSheets(); await sheets.spreadsheets.values.append({ spreadsheetId: SHEET_ID, range:`${EVENTS_SHEET_NAME}!A1`, valueInputOption:'RAW', insertDataOption:'INSERT_ROWS', requestBody:{ values: [row] } }); }
 
-// Simple helper to ensure Users sheet header exists
-async function ensureUsersHeader(){ const sheets = await getSheets(); try{ const resp = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: `${USERS_SHEET_NAME}!A1:E1` }); const values = resp.data.values || []; if(!values.length || !values[0].length){ await sheets.spreadsheets.values.update({ spreadsheetId: SHEET_ID, range:`${USERS_SHEET_NAME}!A1`, valueInputOption:'RAW', requestBody:{ values:[['email','name','passwordHash','role','created_at']] } }); } } catch(e){ await sheets.spreadsheets.values.update({ spreadsheetId: SHEET_ID, range:`${USERS_SHEET_NAME}!A1`, valueInputOption:'RAW', requestBody:{ values:[['email','name','passwordHash','role','created_at']] } }); } }
+// Ensure headers for Users and ResetTokens
+async function ensureUsersHeader(){ const sheets = await getSheets(); try{ const resp = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: `${USERS_SHEET_NAME}!A1:E1` }); const values = resp.data.values || []; if(!values.length || !values[0].length){ await sheets.spreadsheets.values.update({ spreadsheetId: SHEET_ID, range:`${USERS_SHEET_NAME}!A1`, valueInputOption:'RAW', requestBody:{ values:[['email','name','passwordHash','role','created_at']] } }); } } catch(e){ await (await getSheets()).spreadsheets.values.update({ spreadsheetId: SHEET_ID, range:`${USERS_SHEET_NAME}!A1`, valueInputOption:'RAW', requestBody:{ values:[['email','name','passwordHash','role','created_at']] } }); } }
+async function ensureResetsHeader(){ const sheets = await getSheets(); try{ const resp = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: `${RESETS_SHEET_NAME}!A1:D1` }); const values = resp.data.values || []; if(!values.length || !values[0].length){ await sheets.spreadsheets.values.update({ spreadsheetId: SHEET_ID, range:`${RESETS_SHEET_NAME}!A1`, valueInputOption:'RAW', requestBody:{ values:[['token','email','expires','used_at']] } }); } } catch(e){ await (await getSheets()).spreadsheets.values.update({ spreadsheetId: SHEET_ID, range:`${RESETS_SHEET_NAME}!A1`, valueInputOption:'RAW', requestBody:{ values:[['token','email','expires','used_at']] } }); } }
 
 // User CRUD (Google Sheets-based)
 async function findUserByEmail(email){ if(!email) return null; const sheets = await getSheets(); try{ const resp = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: `${USERS_SHEET_NAME}!A2:E1000` }); const rows = resp.data.values || []; for(const row of rows){ if(row[0] && String(row[0]).toLowerCase() === String(email).toLowerCase()){ return { email: row[0], name: row[1], passwordHash: row[2], role: row[3], created_at: row[4], raw: row }; } } }catch(e){ console.warn('findUserByEmail error', e); } return null; }
 
 async function createUser({email,name,password}){ await ensureUsersHeader(); const sheets = await getSheets(); const hash = await bcrypt.hash(password, 10); const row = [ email, name || '', hash, 'user', nowIso() ]; await sheets.spreadsheets.values.append({ spreadsheetId: SHEET_ID, range: `${USERS_SHEET_NAME}!A1`, valueInputOption:'RAW', insertDataOption:'INSERT_ROWS', requestBody:{ values:[row] } }); return { email, name, role:'user' }; }
+
+async function updateUserPassword(email, newPassword){ const sheets = await getSheets(); const resp = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: `${USERS_SHEET_NAME}!A2:E1000` }); const rows = resp.data.values || []; const headerResp = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: `${USERS_SHEET_NAME}!A1:E1` }); const header = (headerResp.data.values||[])[0] || ['email','name','passwordHash','role','created_at']; const pwIndex = header.indexOf('passwordHash'); for(let r=0;r<rows.length;r++){ if(rows[r][0] && String(rows[r][0]).toLowerCase() === String(email).toLowerCase()){ const rowIndex = 2 + r; const hash = await bcrypt.hash(newPassword, 10); const out = rows[r].slice(); out[pwIndex] = hash; const endCol = String.fromCharCode(65 + out.length -1); const range = `${USERS_SHEET_NAME}!A${rowIndex}:${endCol}${rowIndex}`; await sheets.spreadsheets.values.update({ spreadsheetId: SHEET_ID, range, valueInputOption:'RAW', requestBody:{ values:[out] } }); return true; } } return false; }
+
+// Reset token persistence
+async function appendResetToken(email, token, expiresMs){ await ensureResetsHeader(); const sheets = await getSheets(); const row = [ token, email, String(expiresMs), '' ]; await sheets.spreadsheets.values.append({ spreadsheetId: SHEET_ID, range: `${RESETS_SHEET_NAME}!A1`, valueInputOption:'RAW', insertDataOption:'INSERT_ROWS', requestBody:{ values:[row] } }); }
+
+async function findResetToken(token){ const sheets = await getSheets(); try{ const resp = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: `${RESETS_SHEET_NAME}!A2:D1000` }); const rows = resp.data.values || []; for(let r=0;r<rows.length;r++){ const row = rows[r]; if(row[0] && String(row[0]) === String(token)){ return { token: row[0], email: row[1], expires: parseInt(row[2]||'0'), usedAt: row[3]||'', rowIndex: 2 + r, raw: row }; } } }catch(e){ console.warn('findResetToken err', e); } return null; }
+
+async function markResetUsed(rowIndex){ const sheets = await getSheets(); const col = 4; // D = used_at
+  const val = nowIso(); await sheets.spreadsheets.values.update({ spreadsheetId: SHEET_ID, range: `${RESETS_SHEET_NAME}!D${rowIndex}:D${rowIndex}`, valueInputOption:'RAW', requestBody:{ values:[[val]] } }); }
 
 function generateAccess(user){ return jwt.sign({ email:user.email, name:user.name, role:user.role }, AUTH_JWT_SECRET, { expiresIn: AUTH_JWT_EXPIRES }); }
 function generateRefresh(user){ return jwt.sign({ email:user.email }, AUTH_REFRESH_SECRET, { expiresIn: AUTH_REFRESH_EXPIRES }); }
@@ -104,17 +115,39 @@ app.get('/auth/me', async (req,res) => { try{ const authh = (req.get('Authorizat
 
 app.post('/auth/forgot', async (req,res) => { try{ const { email } = req.body || {}; if(!email) return res.status(400).json({ ok:false }); const u = await findUserByEmail(email); // don't reveal
     const resetToken = crypto.randomBytes(24).toString('hex');
-    // persist reset request to Events sheet
-    await appendEventRow({ account_login: email, event: 'password_reset_request', extra: { token: resetToken, expires: Date.now() + 3600*1000 } });
+    const expires = Date.now() + 3600*1000; // 1h
+    // persist reset token
+    await appendResetToken(email, resetToken, expires);
+    // persist event for audit
+    await appendEventRow({ account_login: email, event: 'password_reset_request', extra: { token: resetToken, expires } });
     // try send email if configured
     if(u && mailer){ const resetLink = (FRONTEND_URL ? FRONTEND_URL.replace(/\/$/,'') : '') + '/reset-password.html?token=' + resetToken; await sendEmail(email, 'Reset password', `Use this link to reset: ${resetLink}`, `<p>Use this link to reset your password: <a href="${resetLink}">${resetLink}</a></p>`); }
     return res.json({ ok:true }); }catch(e){ console.error('forgot error', e); return res.status(500).json({ ok:false }); } });
+
+// Reset endpoint: POST /auth/reset { token, newPassword }
+app.post('/auth/reset', async (req,res) => {
+  try{
+    const { token, newPassword } = req.body || {};
+    if(!token || !newPassword) return res.status(400).json({ ok:false, error:'missing' });
+    // find token
+    const row = await findResetToken(token);
+    if(!row) return res.status(400).json({ ok:false, error:'invalid_token' });
+    if(row.usedAt) return res.status(400).json({ ok:false, error:'token_used' });
+    if(Date.now() > (row.expires||0)) return res.status(400).json({ ok:false, error:'token_expired' });
+    // update user password
+    const ok = await updateUserPassword(row.email, newPassword);
+    if(!ok) return res.status(500).json({ ok:false, error:'update_failed' });
+    // mark token used
+    await markResetUsed(row.rowIndex);
+    await appendEventRow({ account_login: row.email, event: 'password_reset_done', extra: { token } });
+    return res.json({ ok:true });
+  }catch(e){ console.error('reset error', e); return res.status(500).json({ ok:false, error:'server_error' }); }
+});
 
 // GitHub OAuth (simple flow)
 app.get('/auth/github', (req,res) => {
   const state = crypto.randomBytes(8).toString('hex');
   const redirect = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(GITHUB_CLIENT_ID)}&scope=user:email&state=${state}`;
-  // NOTE: you may want to store state in a cookie to verify later
   res.redirect(redirect);
 });
 
@@ -122,66 +155,50 @@ app.get('/auth/github/callback', async (req,res) => {
   try{
     const code = req.query.code; const state = req.query.state;
     if(!code) return res.status(400).send('Missing code');
-    // Exchange code
     const tokenResp = await axios.post('https://github.com/login/oauth/access_token', { client_id: GITHUB_CLIENT_ID, client_secret: GITHUB_CLIENT_SECRET, code }, { headers:{ Accept:'application/json' } });
     const token = tokenResp.data.access_token;
     if(!token) return res.status(400).send('No token');
-    // fetch user
     const uResp = await axios.get('https://api.github.com/user', { headers:{ Authorization:'token ' + token, Accept:'application/json' } });
     const emails = await axios.get('https://api.github.com/user/emails', { headers:{ Authorization:'token ' + token, Accept:'application/json' } });
     const primaryEmailObj = (emails.data || []).find(e=>e.primary) || (emails.data||[])[0];
     const email = primaryEmailObj ? primaryEmailObj.email : (uResp.data && uResp.data.email);
     const name = uResp.data && (uResp.data.name || uResp.data.login);
-    // create user if not exists
     let user = await findUserByEmail(email);
     if(!user){ await createUser({ email, name, password: crypto.randomBytes(12).toString('hex') }); user = await findUserByEmail(email); }
     const payloadUser = { email: user.email, name: user.name, role: user.role || 'user' };
     const accessToken = generateAccess(payloadUser);
     const refreshToken = generateRefresh(payloadUser);
-    // redirect back to frontend with tokens (fragile for production - consider cookie)
     const redirectBack = (FRONTEND_URL ? FRONTEND_URL.replace(/\/$/,'') : '') + `/auth-landing.html#access=${accessToken}&refresh=${refreshToken}`;
     return res.redirect(redirectBack);
   }catch(e){ console.error('github callback error', e && e.response ? e.response.data : e); return res.status(500).send('OAuth error'); }
 });
 
-// Existing API endpoints (simplified excerpts) - report/instances/reindex/close_account/sse
-// For brevity: minimal implementations to integrate with new auth checks
-
-// Middleware to check API key or bearer token (for backend non-authenticated EA reports, keep using API_KEY)
-function requireApiKeyOrAuth(req,res,next){ const incomingKey = (req.get('x-api-key')||'').trim(); if(incomingKey && incomingKey === API_KEY) return next(); // api key OK
-  const authh = (req.get('Authorization')||'').replace(/^Bearer\s+/i,''); const payload = verifyAccess(authh); if(payload) { req.user = payload; return next(); } return res.status(401).json({ ok:false, error:'unauthorized' }); }
+// Middleware to check API key or bearer token
+function requireApiKeyOrAuth(req,res,next){ const incomingKey = (req.get('x-api-key')||'').trim(); if(incomingKey && incomingKey === API_KEY) return next(); const authh = (req.get('Authorization')||'').replace(/^Bearer\s+/i,''); const payload = verifyAccess(authh); if(payload) { req.user = payload; return next(); } return res.status(401).json({ ok:false, error:'unauthorized' }); }
 
 // POST /v1/report (EA telemetry)
 app.post('/v1/report', async (req,res) => {
   try{
     const incomingKey = (req.get('x-api-key') || '').trim();
-    if(!incomingKey || incomingKey !== API_KEY){ // if not using API key, allow auth user
-      const authh = (req.get('Authorization')||'').replace(/^Bearer\s+/i,''); const payload = verifyAccess(authh); if(!payload) return res.status(401).json({ok:false, error:'invalid_api_key'});
-    }
-
+    if(!incomingKey || incomingKey !== API_KEY){ const authh = (req.get('Authorization')||'').replace(/^Bearer\s+/i,''); const payload = verifyAccess(authh); if(!payload) return res.status(401).json({ok:false, error:'invalid_api_key'}); }
     if(HMAC_SECRET){ const sig = (req.get('x-signature')||'').trim(); if(!sig) return res.status(401).json({ok:false, error:'missing_signature'}); const expected = crypto.createHmac('sha256', HMAC_SECRET).update(req.rawBody || Buffer.from(JSON.stringify(req.body))).digest('hex'); if(sig !== expected) return res.status(401).json({ok:false, error:'invalid_signature'}); }
-
     const payload = req.body; if(!payload || typeof payload !== 'object') return res.status(400).json({ok:false, error:'invalid_payload'});
     const account = payload.account_login || payload.account; const now = Date.now(); instances.set(account, { lastSeen: now, payload: payload, status: 'online' });
-    // record event and upsert monitor row asynchronously
     appendEventRow(payload).catch(()=>{});
-    // upsertMonitorRow can be heavy; call but don't await fully
-    // NOTE: upsertMonitorRow not implemented here for brevity — you can reuse earlier implementation
     return res.json({ok:true});
   }catch(err){ console.error('report processing error', err && err.stack ? err.stack : err); return res.status(500).json({ok:false, error:'server_error', detail: String(err)}); }
 });
 
-// GET /v1/instances (requires API key or auth)
+// GET /v1/instances
 app.get('/v1/instances', requireApiKeyOrAuth, (req,res) => {
   const activeOnly = String(req.query.activeOnly || '').toLowerCase() === 'true';
   const list = []; const now = Date.now(); for(const [account,obj] of instances.entries()){ const isActive = (now - obj.lastSeen) <= HEARTBEAT_TTL*1000; if(activeOnly && !isActive) continue; list.push({ account, status: obj.status, lastSeen: new Date(obj.lastSeen).toISOString(), payload: obj.payload }); } res.json({ ok:true, instances: list });
 });
 
-// POST /v1/reindex (protected by API key or auth user)
-app.post('/v1/reindex', requireApiKeyOrAuth, async (req,res) => { try{ // For safety, just confirm
-    await appendEventRow({ account_login: (req.user && req.user.email) || 'system', event: 'reindex_request', extra: {} }); return res.json({ ok:true, note:'reindex enqueued (server will perform background upsert)' }); }catch(e){ console.error('reindex err', e); return res.status(500).json({ ok:false, error:String(e) }); } });
+// POST /v1/reindex
+app.post('/v1/reindex', requireApiKeyOrAuth, async (req,res) => { try{ await appendEventRow({ account_login: (req.user && req.user.email) || 'system', event: 'reindex_request', extra: {} }); return res.json({ ok:true, note:'reindex enqueued' }); }catch(e){ console.error('reindex err', e); return res.status(500).json({ ok:false, error:String(e) }); } });
 
-// POST /v1/close_account (signal)
+// POST /v1/close_account
 app.post('/v1/close_account', requireApiKeyOrAuth, async (req,res) => { try{ const { account, dryRun=true } = req.body || {}; if(!account) return res.status(400).json({ ok:false, error:'missing_account' }); await appendEventRow({ account_login: account, event: 'request_close', extra: { dryRun, by: (req.user && req.user.email) || 'api' } }); return res.json({ ok:true, account, dryRun }); }catch(e){ console.error('close_account', e); return res.status(500).json({ ok:false, error:String(e) }); } });
 
 // SSE endpoint

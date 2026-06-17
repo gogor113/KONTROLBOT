@@ -1,3 +1,10 @@
 <resources>
-    <string name="app_name">GOGOR Manager</string>
+    <string name="app_name">KONTROLBOT</string>
+
+    <!-- GANTI INI dengan Web client ID Anda (Client ID tipe "Web application" dari Google Cloud Console)
+         Digunakan untuk requestIdToken agar backend bisa memverifikasi token -->
+    <string name="server_client_id">YOUR_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com</string>
+
+    <!-- Ganti dengan base URL backend Anda -->
+    <string name="backend_base_url">https://your.backend.example/</string>
 </resources>

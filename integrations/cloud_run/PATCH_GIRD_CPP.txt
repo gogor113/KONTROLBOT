@@ -1,0 +1,31 @@
+PATCH for GIRD.CPP - where to add integration calls
+
+Do NOT apply automatically unless you verify file path. This patch shows exact snippets to paste into your GIRD.CPP.
+
+1) At the top of GIRD.CPP, add include for helper (adjust path if needed):
+
+#include "GIRD_GoogleSheets.mq5"
+
+2) In OnInit() after successful init, send start event:
+
+// send start event to CloudRun monitor
+GGS_SendEvent("start", _Symbol);
+
+3) In UpdateDashboardData() near the end (throttle), call heartbeat:
+
+// send heartbeat (throttled inside function)
+GGS_SendHeartbeat(MAGIC_NUMBER, _Symbol);
+
+4) In ExecuteCloseAllStrategy() after closing positions, send close_all event:
+
+// notify monitor
+GGS_SendEvent("close_all", _Symbol);
+
+5) In OnDeinit(), send stop event:
+
+GGS_SendEvent("stop", _Symbol);
+
+Notes:
+- Ensure GIRD_GoogleSheets.mq5 is available in Include/ or adjust include path.
+- Add the Cloud Run URL to MetaTrader Tools -> Options -> Expert Advisors -> Allow WebRequest for listed URL(s).
+- Configure GGS_CLOUD_URL and GGS_API_KEY in the helper file (or set as EA input parameters) before running in production.

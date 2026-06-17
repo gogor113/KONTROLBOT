@@ -1,20 +1,21 @@
 //+------------------------------------------------------------------+
-// GIRD_GoogleSheets.mq5 (UPDATED)
+// GIRD_GoogleSheets.mq5 (UPDATED headers)
 // MQL5 helper for Cloud Run / Google Sheets integration
-// Place this file in Include/ or copy functions into your EA
+// This version sends x-api-key header and supports placing x-signature (HMAC) if you compute it externally.
+// Note: MQL5 doesn't have built-in HMAC-SHA256 utility in a standard lib — compute signature externally or ask me to implement a pure-MQL HMAC routine.
 //+------------------------------------------------------------------+
 
-#property version "1.10"
+#property version "1.11"
 
-// Configure these values (replace with your Cloud Run URL and API key)
-string GGS_CLOUD_URL = "https://REPLACE_WITH_CLOUD_RUN_URL"; // e.g. https://gird-cloudrun-xxxxx-uc.a.run.app
+// Configure these values (replace with your Cloud Run URL or Apps Script URL and API key)
+string GGS_CLOUD_URL = "https://script.google.com/macros/s/AKfycbwp_1VTNmJFdXmPrENXL8AC2zijTJbIvSCmubeRBQjHQj1lFd_xsidD6v8Okm89SD_ODg/exec"; // default points to your Apps Script
 string GGS_API_KEY   = "REPLACE_WITH_API_KEY";
+string GGS_SIGNATURE = ""; // optional: precomputed HMAC-SHA256 hex signature of the payload if server expects x-signature
 
 // Heartbeat control
 int GGS_HEARTBEAT_INTERVAL = 60; // seconds
 datetime ggs_last_heartbeat = 0;
 
-// Utility: convert payload string to uchar buffer
 void StringToUcharBuffer(const string s, uchar &buf[], int &len){
    len = StringToCharArray(s, buf);
    if(len>0 && buf[len-1]==0) ArrayResize(buf, len-1);
@@ -25,6 +26,7 @@ bool GGS_SendPayloadCloudRun(string jsonPayload, int timeout_ms = 10000) {
    string url = GGS_CLOUD_URL + "/v1/report";
    string headers = "Content-Type: application/json\r\n";
    headers += "x-api-key: " + GGS_API_KEY + "\r\n";
+   if(StringLen(GGS_SIGNATURE) > 0) headers += "x-signature: " + GGS_SIGNATURE + "\r\n"; // optional
 
    uchar postData[]; int len = 0;
    StringToUcharBuffer(jsonPayload, postData, len);
@@ -45,7 +47,6 @@ bool GGS_SendPayloadCloudRun(string jsonPayload, int timeout_ms = 10000) {
    return (res >= 200 && res < 300);
 }
 
-// convenience wrapper: send summary
 bool GGS_SendSummaryCloud(string eventType, string symbol, double balance, double equity) {
    string json = "{";
    json += "\"event\":\"" + eventType + "\",";
@@ -62,27 +63,7 @@ bool GGS_SendSummaryCloud(string eventType, string symbol, double balance, doubl
    return GGS_SendPayloadCloudRun(json);
 }
 
-string buildPositionsJson(uint magicNumber, string symbol) {
-   string arr = "[";
-   int first = 1;
-   for(int i=0;i<PositionsTotal();i++){
-      ulong t = PositionGetTicket(i);
-      if(t>0 && PositionSelectByTicket(t)){
-         if(PositionGetInteger(POSITION_MAGIC) == (long)magicNumber && PositionGetString(POSITION_SYMBOL) == symbol){
-            if(!first) arr += ",";
-            arr += "{";
-            arr += "\"ticket\":\"" + (string)t + "\",";
-            arr += "\"type\":" + IntegerToString((int)PositionGetInteger(POSITION_TYPE)) + ",";
-            arr += "\"volume\":" + DoubleToString(PositionGetDouble(POSITION_VOLUME),2) + ",";
-            arr += "\"profit\":" + DoubleToString(PositionGetDouble(POSITION_PROFIT),2);
-            arr += "}";
-            first = 0;
-         }
-      }
-   }
-   arr += "]";
-   return arr;
-}
+// If you want to include positions array, implement a serializer and set open_positions_json field in JSON payload
 
 bool GGS_SendHeartbeat(uint magicNumber, string symbol) {
    datetime now = TimeCurrent();
@@ -101,13 +82,12 @@ bool GGS_SendHeartbeat(uint magicNumber, string symbol) {
    payload += "\"equity\":" + DoubleToString(AccountInfoDouble(ACCOUNT_EQUITY),2) + ",";
    payload += "\"free_margin\":" + DoubleToString(AccountInfoDouble(ACCOUNT_MARGIN_FREE),2) + ",";
    payload += "\"positions_count\":" + IntegerToString(CountPositions()) + ",";
-   payload += "\"open_positions_json\":" + buildPositionsJson(MAGIC_NUMBER, symbol);
+   payload += "\"open_positions_json\":[]"; // implement positions JSON if desired
    payload += "}";
 
    return GGS_SendPayloadCloudRun(payload);
 }
 
-// helper to send events (start/stop/close_all)
 bool GGS_SendEvent(string eventType, string symbol) {
    string json = "{";
    json += "\"event\":\"" + eventType + "\",";
@@ -118,5 +98,11 @@ bool GGS_SendEvent(string eventType, string symbol) {
    json += "}";
    return GGS_SendPayloadCloudRun(json);
 }
+
+// Example: compute HMAC signature in external script (Python) and paste into GGS_SIGNATURE before calling
+// Python example:
+// import hmac, hashlib
+// def hmac_hex(secret, payload_bytes):
+//     return hmac.new(secret.encode(), payload_bytes, hashlib.sha256).hexdigest()
 
 // Integration note: call GGS_SendEvent("start", _Symbol) in OnInit, GGS_SendHeartbeat(MAGIC_NUMBER,_Symbol) in OnTimer or UpdateDashboardData, GGS_SendEvent("stop", _Symbol) in OnDeinit, and GGS_SendEvent("close_all", _Symbol) after ExecuteCloseAllStrategy.

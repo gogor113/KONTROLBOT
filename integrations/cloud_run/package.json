@@ -1,13 +1,20 @@
 {
   "name": "gird-cloudrun",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "description": "GIRD Monitor Cloud Run service",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "axios": "^1.4.0",
+    "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.2",
-    "googleapis": "^131.0.0"
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "googleapis": "^121.0.0",
+    "helmet": "^7.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "nodemailer": "^6.9.4"
   }
 }

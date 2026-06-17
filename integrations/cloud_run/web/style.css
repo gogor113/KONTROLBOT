@@ -1,0 +1,35 @@
+/* style.css - simple modern dashboard styles */
+:root{
+  --bg:#0f1724; --card:#0b1721; --muted:#9aa4b2; --accent:#4aa96c; --accent-2:#3b82f6; --text:#e6eef6; --glass: rgba(255,255,255,0.03);
+  --radius:10px; --pad:16px;
+}
+*{box-sizing:border-box}
+body{font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin:0; background:linear-gradient(180deg,#061018 0%, #071427 100%); color:var(--text);}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:linear-gradient(90deg, rgba(255,255,255,0.02), transparent);backdrop-filter:blur(4px);}
+.topbar .brand{font-weight:700;font-size:18px;color:var(--accent-2)}
+.topbar .controls{display:flex;gap:8px;align-items:center}
+.topbar input{background:var(--glass);border:1px solid rgba(255,255,255,0.04);color:var(--text);padding:8px;border-radius:8px;min-width:220px}
+.btn{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text);padding:8px 10px;border-radius:8px;cursor:pointer}
+.btn.primary{background:linear-gradient(90deg,var(--accent-2),var(--accent));border:none}
+.btn.outline{background:transparent;border:1px solid rgba(255,255,255,0.08)}
+.container{max-width:1200px;margin:20px auto;padding:0 20px}
+.card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:16px;margin-bottom:16px;box-shadow:0 6px 30px rgba(2,6,23,0.6)}
+.overview .row{display:flex;gap:24px;align-items:center}
+.overview h3{margin:0;color:var(--muted);font-size:13px}
+.big{font-size:28px;font-weight:700}
+.muted{color:var(--muted);font-size:12px}
+.grid.two-cols{display:grid;grid-template-columns:1fr 420px;gap:16px}
+.card-title{font-weight:700;margin-bottom:8px}
+.toolbar{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.table-wrap{overflow:auto;max-height:420px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{position:sticky;top:0;background:rgba(0,0,0,0.15);padding:8px;text-align:left;color:var(--muted)}
+tbody td{padding:10px;border-top:1px solid rgba(255,255,255,0.02)}
+.badge{display:inline-block;padding:6px 8px;border-radius:999px;font-weight:600;font-size:12px}
+.badge.green{background:linear-gradient(90deg,#1ea34a,#3dbd6d);color:#00210a}
+.badge.gray{background:rgba(255,255,255,0.03);color:var(--muted)}
+.foot{opacity:0.7;text-align:center;margin-top:8px}
+.detail{background:rgba(0,0,0,0.2);padding:12px;border-radius:8px;color:#cfe8d8;max-height:240px;overflow:auto}
+.small{padding:6px 8px;font-size:12px}
+.switch{display:inline-flex;align-items:center;gap:8px}
+@media(max-width:900px){.grid.two-cols{grid-template-columns:1fr} .topbar .controls{flex-direction:column;align-items:flex-end} }
